@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>捞鱼同步小助手</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="booterror" class="noauth hidden"></div>
+<script>
+window.addEventListener("error", function (e) {
+  var el = document.getElementById("booterror");
+  if (!el) return;
+  el.classList.remove("hidden");
+  el.textContent = "页面脚本出错：" + (e.message || e.error || e.filename);
+});
+</script>
+<div id="noauth" class="noauth hidden">
+  <img src="/assets/stickers/第12弹-困困.png" alt="">
+  <p>请从「启动捞鱼同步小助手」入口打开，直接访问缺少本机令牌。</p>
+</div>
+
+<div id="app" class="app hidden">
+  <aside class="side">
+    <div class="brand">
+      <div class="brand-logo">🐟</div>
+      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">两台电脑，像网盘一样互传</div></div>
+    </div>
+    <nav>
+      <a href="#/" data-page="dash" class="active">仪表盘</a>
+      <a href="#/devices" data-page="devices">设备与配对<span id="dot-devices" class="nav-dot hidden"></span></a>
+      <a href="#/folders" data-page="folders">同步项目<span id="dot-folders" class="nav-dot hidden"></span></a>
+      <a href="#/events" data-page="events">动态</a>
+      <a href="#/about" data-page="about">关于</a>
+    </nav>
+    <div class="side-foot">
+      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.2.0</span>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div id="statusCapsule" class="capsule"><span class="dot grey"></span><span id="statusText">连接中…</span></div>
+      <div id="speedInfo" class="speed"></div>
+    </header>
+
+    <div id="updateBanner" class="banner hidden">
+      <span id="updateText"></span>
+      <button id="btnUpdate" class="btn small primary">一键更新</button>
+      <button id="btnChangelog2" class="btn small ghost">看看更新了啥</button>
+    </div>
+
+    <!-- 仪表盘 -->
+    <section id="page-dash" class="page">
+      <div class="cards">
+        <div class="card hero">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 120 120" class="ring">
+              <circle cx="60" cy="60" r="52" class="ring-bg"/>
+              <circle id="ringFg" cx="60" cy="60" r="52" class="ring-fg loading"/>
+            </svg>
+            <div class="ring-num"><div id="ringPct" class="big">…</div><div class="mut">全部同步进度</div></div>
+          </div>
+          <div class="hero-info">
+            <div id="heroState" class="hero-state">正在看一眼两台电脑的状态…</div>
+            <div id="heroDetail" class="mut"></div>
+            <div id="heroNext" class="hero-next"></div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>我的电脑们</h3>
+          <div id="dashDevices" class="dev-chips"></div>
+          <p class="mut small">想让新电脑加入？去 <a href="#/devices">设备与配对</a> 复制一串号码发给对方就行。</p>
+        </div>
+      </div>
+
+      <div id="pendingAlert" class="banner pending-banner hidden">
+        <span id="pendingAlertText"></span>
+        <button id="btnGoPending" class="btn small primary">去接收</button>
+      </div>
+
+      <h3 class="sec-title">同步项目</h3>
+      <div id="dashFolders" class="folder-grid"></div>
+      <div id="dashErrors" class="errbox hidden"></div>
+    </section>
+
+    <!-- 设备与配对 -->
+    <section id="page-devices" class="page hidden">
+      <div class="cards">
+        <div class="card">
+          <h3>本机的「电脑号码」</h3>
+          <div class="mydev">
+            <div>
+              <div id="myName" class="mydev-name">…</div>
+              <div id="myId" class="mono mydev-id"></div>
+              <div class="row">
+                <button id="btnCopyId" class="btn small primary">复制号码</button>
+                <span class="mut small">点复制 → 微信发给另一台电脑的主人 → 对方在下面粘贴，就认识了</span>
+              </div>
+            </div>
+            <img id="myQr" class="qr" alt="本机号码二维码" title="给装了手机版 Syncthing 的人扫">
+          </div>
+        </div>
+        <div class="card">
+          <h3>认识一台新电脑</h3>
+          <div id="pendingBox" class="pending hidden">
+            <div class="pending-head">🔔 有设备想连进来，点一下就接受：</div>
+            <div id="pendingList"></div>
+          </div>
+          <form id="addDeviceForm" class="form" autocomplete="off">
+            <label>对方的「电脑号码」 <span class="mut small">一长串字母数字，整段粘贴就行，带空格横线都没关系</span></label>
+            <input id="inDeviceId" class="mono" placeholder="把这串号码粘贴到这里" spellcheck="false">
+            <label>给 TA 起个备注名（可选）</label>
+            <input id="inDeviceName" placeholder="例：我的 MacBook">
+            <label>共享这些项目给 TA：</label>
+            <div id="shareFolders" class="checks"></div>
+            <label class="check-line"><input type="checkbox" id="inAutoAccept"> 以后自动接收 TA 分享的项目（不用再手动点）</label>
+            <div class="row">
+              <button id="btnAddDevice" class="btn primary" type="submit">添加</button>
+              <span id="addDeviceMsg" class="form-msg"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+      <h3 class="sec-title">已经认识的电脑</h3>
+      <div id="deviceList" class="dev-list"></div>
+    </section>
+
+    <!-- 同步项目 -->
+    <section id="page-folders" class="page hidden">
+      <div id="pendingProjects" class="card pending-card hidden">
+        <h3>📥 等你接收的项目</h3>
+        <p class="mut small">别的电脑把项目分享过来了，选一个保存在本机的位置，点接收就通了。</p>
+        <div id="pendingProjectList"></div>
+      </div>
+
+      <div class="card">
+        <h3>新建同步项目</h3>
+        <p class="mut small">比如建一个「工作」：选好本机文件夹，再勾选要一起同步的电脑，两边内容就会自动保持一致。</p>
+        <form id="addFolderForm" class="form" autocomplete="off">
+          <div class="row-wrap">
+            <div class="col grow">
+              <label>项目名称</label>
+              <input id="inFolderLabel" placeholder="例：工作">
+            </div>
+            <div class="col grow">
+              <label>本机文件夹</label>
+              <div class="path-row">
+                <input id="inFolderPath" placeholder="点右边按钮选，或直接粘贴路径">
+                <button id="btnBrowseNew" class="btn" type="button">浏览…</button>
+              </div>
+            </div>
+          </div>
+          <label>同时共享给：</label>
+          <div id="newProjectDevices" class="checks row-checks"></div>
+          <div class="row">
+            <button id="btnAddFolder" class="btn primary" type="submit">创建项目</button>
+            <span id="addFolderMsg" class="form-msg"></span>
+          </div>
+        </form>
+      </div>
+
+      <h3 class="sec-title">进行中的项目</h3>
+      <div id="folderList" class="folder-grid"></div>
+    </section>
+
+    <!-- 动态 -->
+    <section id="page-events" class="page hidden">
+      <div class="card">
+        <h3>最近动态</h3>
+        <div id="eventList" class="events"></div>
+        <div id="eventEmpty" class="sticker-empty hidden">
+          <img src="/assets/stickers/第12弹-困困.png" alt="">
+          还没有记录，同步过文件后这里会有一条条流水
+        </div>
+      </div>
+    </section>
+
+    <!-- 关于 -->
+    <section id="page-about" class="page hidden">
+      <div class="about">
+        <div class="card about-card">
+          <img class="avatar" src="https://s41.ax1x.com/2025/12/05/pZmPZPH.png" alt="捞鱼"
+               onerror="this.style.display='none'">
+          <div class="about-head">
+            <div class="about-name">🐟 捞鱼</div>
+            <div class="mut">一个弱小但有梦想的开发者</div>
+            <div class="mut small">「捞鱼同步小助手」由 捞鱼工作室 制作</div>
+          </div>
+          <p class="mut small">本软件是在开源软件 <a href="#" data-external="https://syncthing.net">Syncthing</a> 基础上做的中文易用外壳，同步能力与数据格式完全兼容官方版。</p>
+          <div class="about-links">
+            <a class="btn small" href="#" data-external="https://lyzbcy.github.io/">🏠 了解更多关于捞鱼</a>
+            <a class="btn small" href="#" data-external="https://lyzbcy.github.io/weshoto-study/">😀 我的原创表情包</a>
+          </div>
+          <div class="qr-row">
+            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/sticker/sticker-qr.png" onerror="this.parentNode.classList.add('broken')"><figcaption>表情包</figcaption></figure>
+            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/reward-qr.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>请作者喝杯咖啡</figcaption></figure>
+            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/qq-group.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>加入 QQ 群</figcaption></figure>
+          </div>
+          <div class="fb">
+            <label>想夸我 / 骂我 / 提需求？直接写：</label>
+            <textarea id="inFeedback" rows="3" placeholder="你的反馈会直接送到作者手里，不用注册不用跳转"></textarea>
+            <div class="row"><button id="btnFeedback" class="btn primary small" type="button">发送反馈</button><span id="fbMsg" class="form-msg"></span></div>
+          </div>
+          <div class="about-more">
+            <div class="row ver-row">
+              <button id="btnCheckUpdate" class="btn small" type="button">检查更新</button>
+              <span id="checkUpdateMsg" class="form-msg"></span>
+            </div>
+            <a href="#" data-external="http://127.0.0.1:8384" class="mut small">专家模式（Syncthing 原生英文设置，日常不用进）</a>
+          </div>
+          <img class="about-sticker" src="/assets/stickers/第11弹-谢谢.png" alt="谢谢">
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden">
+  <div class="modal-card">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div class="row end">
+      <button id="modalCancel" class="btn hidden">取消</button>
+      <button id="modalOk" class="btn primary hidden">确定</button>
+      <button id="modalClose" class="btn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="/app.js"></script>
+</body>
+</html>
