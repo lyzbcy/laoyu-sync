@@ -199,6 +199,7 @@ class STClient:
 class STManager:
     def __init__(self):
         self.client = STClient()
+        self._ensure_lock = threading.Lock()
         self._speed_lock = threading.Lock()
         self._last_total = None  # (ts, inBytes, outBytes)
         self._rates = {"in": 0.0, "out": 0.0}
@@ -206,6 +207,14 @@ class STManager:
     # ---------- 进程
 
     def ensure_running(self, wait_seconds=45):
+        if not self._ensure_lock.acquire(blocking=False):
+            return False
+        try:
+            return self._ensure_running(wait_seconds)
+        finally:
+            self._ensure_lock.release()
+
+    def _ensure_running(self, wait_seconds=45):
         """确保 Syncthing 在跑且 API 就绪；返回是否就绪。"""
         if self.client.api_ok():
             return True
@@ -221,7 +230,7 @@ class STManager:
                 activity.user("同步引擎已就绪")
                 return True
             time.sleep(1)
-        activity.user("同步引擎启动超时，稍后将自动重试", "warn")
+        activity.user("同步引擎启动超时，可点击「重试启动引擎」再试", "warn")
         return False
 
     # ---------- 状态聚合

@@ -199,6 +199,7 @@ nav a.active {
 }
 
 /* ================= 同步项目卡片 ================= */
+.onboarding { margin-bottom: 20px; }
 .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 .folder-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
 .folder-head .btn { white-space: nowrap; flex-shrink: 0; }

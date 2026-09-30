@@ -9,6 +9,11 @@ import subprocess
 import time
 import urllib.request
 
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
+except Exception:
+    pass
+
 def windows_for(pid):
     u = ctypes.windll.user32
     u.IsWindowVisible.argtypes = [wintypes.HWND]

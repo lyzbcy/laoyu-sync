@@ -371,6 +371,7 @@ async function removeFolderClick(e) {
 
 function renderDash() {
   const s = LAST_STATUS;
+  $("onboarding").classList.toggle("hidden", s.folders.length > 0);
   const st = stateOf(s);
   const pct = Math.min(100, s.total.pct);
   $("ringPct").textContent = s.syncthing.api_ok && s.folders.length && !s.folders.some(f => f.state === "unavailable") ? fmtPct(s.total.pct) : "—";
