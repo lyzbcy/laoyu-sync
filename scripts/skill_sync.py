@@ -10,7 +10,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--force', action='store_true')
 args = parser.parse_args()
 def git(*arguments):
-    return subprocess.check_output(['git','-C',str(root),*arguments], stderr=subprocess.DEVNULL, text=True, timeout=20).strip()
+    return subprocess.check_output(['git','-C',str(root),*arguments], stderr=subprocess.DEVNULL, encoding='utf-8', timeout=20).strip()
 today = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
 try:
     git_dir = Path(git('rev-parse','--absolute-git-dir'))

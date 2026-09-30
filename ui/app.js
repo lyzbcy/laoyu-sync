@@ -684,16 +684,16 @@ $("btnFeedback").onclick = async () => {
   if (!text) { toast("先写点什么再发"); return; }
   await withLoading($("btnFeedback"), async () => {
     if (!FEEDBACK_CONFIGURED) {
-      await copyText(text);
-      $("fbMsg").textContent = "内容已复制，请通过作者主页或 GitHub Issue 提交";
+      const copied = await copyText(text);
+      $("fbMsg").textContent = copied ? "内容已复制，请通过作者主页或 GitHub Issue 提交" : "自动复制失败，内容保留在输入框，请手动复制后提交";
       return;
     }
     try {
       const r = await api("POST", "/api/feedback", { text });
       if (r.ok) { toast("已送达，谢谢你！"); $("inFeedback").value = ""; }
     } catch (e) {
-      await copyText(text);
-      $("fbMsg").textContent = "发送失败，内容已复制，去个人主页找我即可";
+      const copied = await copyText(text);
+      $("fbMsg").textContent = copied ? "发送失败，内容已复制，可通过作者主页提交" : "发送和自动复制失败，内容保留在输入框，请手动复制后提交";
     }
   }, "发送中…");
 };
