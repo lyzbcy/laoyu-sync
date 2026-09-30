@@ -36,8 +36,9 @@ AUTO_START_SYNCTHING = False  # 引擎由主程序统一管理
 POLL_SECONDS = 2
 
 COLORS = {
-    "ok":       ("#43A047", "#2E7031"),
-    "syncing":  ("#1E88E5", "#155A99"),
+    "ok":       ("#75C9B2", "#287E73"),
+    "syncing":  ("#71BCE9", "#337CBA"),
+    "ready":    ("#8ED7E0", "#3C8F9C"),
     "scanning": ("#00ACC1", "#007585"),
     "pending":  ("#FB8C00", "#B25E00"),
     "error":    ("#E53935", "#9F2622"),
@@ -55,13 +56,13 @@ SYNCTHING_EXE_CANDIDATES = [
 SYNCSPIRITE_CFG = config.CONFIG_PATH
 
 
-def open_syncsprite():
+def open_syncsprite(route=''):
     url = f"http://127.0.0.1:{os.environ.get('LAOYU_SYNC_PORT', config.get('port'))}/"
     try:
         token = json.loads(SYNCSPIRITE_CFG.read_text(encoding="utf-8")).get("token", "")
     except Exception:
         token = ""
-    webbrowser.open(url + ("?t=" + token if token else ""))
+    webbrowser.open(url + ("?t=" + token if token else "") + route)
 
 
 def read_gui_config():
@@ -289,7 +290,7 @@ class PetApp:
         self._next_blink = time.time() + 3
         self.S = max(1.0, root.winfo_fpixels("1i") / 96.0)  # DPI 缩放系数
 
-        w, h = int(190 * self.S), int(205 * self.S)
+        w, h = int(190 * self.S), int(224 * self.S)
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         self.x = int(sw - w - 30 * self.S)
         self.y = int(sh - h - 90 * self.S)
@@ -311,9 +312,11 @@ class PetApp:
         self.panel.geometry("+30000+30000")
         self.panel_label = tk.Label(
             self.panel, text="", font=FONT, bg="#23232E", fg="#E8E8F0",
-            justify=tk.LEFT, anchor="w", padx=12, pady=10,
+            justify=tk.LEFT, anchor="w", padx=16, pady=12, wraplength=int(300 * self.S),
         )
         self.panel_label.pack()
+        tk.Button(self.panel, text='打开助手，查看下一步 →', command=self.open_web,
+                  bg='#334A5A', fg='#E8F4FA', relief='flat', padx=12, pady=7).pack(fill='x')
 
         self.menu = tk.Menu(root, tearoff=0)
         self.menu.add_command(label="打开捞鱼同步小助手", command=open_syncsprite)
@@ -367,7 +370,7 @@ class PetApp:
             self.menu.grab_release()
 
     def open_web(self):
-        open_syncsprite()
+        open_syncsprite((self.snapshot or {}).get('setup', {}).get('route', '#/dash'))
 
     def manual_start(self):
         request = urllib.request.Request(_gateway() + '/api/engine/start', data=b'{}', headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'}, method='POST')
@@ -479,8 +482,12 @@ class PetApp:
         self.badge = c.create_oval(*p(138, 16, 166, 44), fill="#E53935",
                                    outline="white", width=max(1, int(2 * s)), state="hidden")
         self.badge_txt = c.create_text(*p(152, 30), text="", font=FONT_B, fill="white", state="hidden")
-        self.big_txt = c.create_text(w // 2, int(184 * s), text="启动中…", font=FONT_B, fill="#222222")
-        self.small_txt = c.create_text(w // 2, int(199 * s), text="", font=FONT_S, fill="#444444")
+        # A readable status capsule on any wallpaper, independent of the fish animation.
+        c.create_polygon(*p(18, 177, 172, 177, 182, 187, 182, 209, 172, 219,
+                            18, 219, 8, 209, 8, 187), smooth=True,
+                         fill='#F0F7FA', outline='#C9DDE6')
+        self.big_txt = c.create_text(w // 2, int(189 * s), text="正在连接…", font=FONT_B, fill="#25465B")
+        self.small_txt = c.create_text(w // 2, int(207 * s), text="", font=FONT_S, fill="#517185")
 
     def _apply_state(self, snap):
         key, big, small, pct, badge = aggregate(snap)
@@ -535,17 +542,24 @@ class PetApp:
         snap = self.snapshot
         if not snap:
             return
-        lines = []
+        network = snap.get('network', {})
+        lines = ['捞鱼 · 同步陪伴', '● Tailscale 网络已就绪' if network.get('connected') else '○ 网络：' + network.get('note', '正在识别')]
+        if not snap.get('folders'):
+            setup = snap.get('setup', {})
+            lines.extend([setup.get('title', '正在读取同步项目'), setup.get('detail', ''), '单击收起 · 双击接入项目'])
+            self.panel_label.config(text='\n'.join(lines))
+            return
         if not snap.get("api_ok"):
             lines.append("○ Syncthing 未运行" if not snap.get("process_running")
                          else "○ Syncthing 正在启动…")
         else:
-            for f in snap["folders"]:
+            for f in snap["folders"][:5]:
                 total, insync = f["globalBytes"], f["inSyncBytes"]
-                pct = (insync / total * 100.0) if total else 100.0
+                pct = f.get('pct', (insync / total * 100.0) if total else 0.0)
                 mark = {"idle": "●", "syncing": "◐", "scanning": "◑"}.get(f["state"], "▲")
-                lines.append(f"{mark} {f['label']}  {fmt_pct(pct)}")
-                lines.append(f"    状态：{f['state']} · 共 {fmt_bytes(total)}")
+                state = '已暂停' if f.get('paused') else {'idle': '本机已同步', 'syncing': '正在同步', 'scanning': '检查文件变化', 'unavailable': '状态暂不可读', 'error': '同步出错'}.get(f['state'], '等待同步')
+                lines.append(f"{mark} {f['label']} · {state}")
+                lines.append(f"    {fmt_pct(pct) if f['state'] != 'unavailable' else '—'} · 共 {fmt_bytes(total)}")
                 if f["needFiles"]:
                     lines.append(f"    待同步：{f['needFiles']} 个文件 / {fmt_bytes(f['needBytes'])}")
                 if f["pullErrors"]:
@@ -553,7 +567,9 @@ class PetApp:
                 for err in snap["folder_errors"].get(f["id"], [])[:3]:
                     lines.append(f"    × …{err.get('path', '')[-38:]}")
                     lines.append(f"      {err.get('message', '')[:46]}")
-            for d in snap["devices"]:
+            if len(snap['folders']) > 5:
+                lines.append(f"另有 {len(snap['folders']) - 5} 个项目，打开助手查看")
+            for d in snap["devices"][:6]:
                 if d["self"]:
                     continue
                 if d["connected"]:
@@ -739,9 +755,19 @@ _original_aggregate = aggregate
 def aggregate(snap):
     if snap.get('api_ok'):
         if not snap.get('folders'):
-            return 'pending', '尚未配置', '双击开始使用', 0, 0
+            key = snap.get('setup', {}).get('key')
+            if key == 'receive':
+                return 'ready', '项目等你接收', '双击选择保存位置', 0, len(snap.get('pending_folders', []))
+            if key == 'other_config':
+                return 'ready', '发现旧项目', '打开原工具后重新接入', 0, 0
+            if snap.get('network', {}).get('connected'):
+                return 'ready', '网络已就绪', '双击接入已有项目', 0, 0
+            return 'ready', '等待同步项目', '双击接收或选择文件夹', 0, 0
         if any(f.get('state') == 'unavailable' for f in snap['folders']):
             return 'error', '状态未知', '请打开助手检查', 0, 0
+        if any(f.get('pullErrors') or f.get('errors') or f.get('state') == 'error' for f in snap['folders']):
+            count = sum(f.get('pullErrors', 0) for f in snap['folders'])
+            return 'error', '同步需要处理', '双击查看失败原因', 0, count or 1
         if any(f.get('paused') for f in snap['folders']):
             return 'pending', '项目已暂停', '双击管理同步项目', 0, 0
     result = _original_aggregate(snap)

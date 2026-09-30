@@ -13,4 +13,4 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='LaoyuSync', debug=Fal
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='LaoyuSync')
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='LaoyuSync.app', icon=str(root/'assets/app.icns'), bundle_identifier='studio.laoyu.sync',
-                 info_plist={'CFBundleShortVersionString':'0.3.1','NSHighResolutionCapable':True})
+                 info_plist={'CFBundleShortVersionString':'0.3.2','NSHighResolutionCapable':True})

@@ -68,6 +68,9 @@ class ExistingNetworkTests(unittest.TestCase):
             result = subprocess.CompletedProcess([],0,json.dumps(command).encode('utf-8'),b'')
             with patch('stmanager.platform.system', return_value='Windows'), patch('stmanager.subprocess.run', return_value=result):
                 self.assertEqual(stmanager.running_config_home(),home)
+            quoted = subprocess.CompletedProcess([],0,json.dumps(f'syncthing.exe serve "--home={home}"').encode('utf-8'),b'')
+            with patch('stmanager.platform.system', return_value='Windows'), patch('stmanager.subprocess.run', return_value=quoted):
+                self.assertEqual(stmanager.running_config_home(),home)
             mixed = subprocess.CompletedProcess([],0,json.dumps([command, 'syncthing.exe serve --no-browser']).encode('utf-8'),b'')
             with patch('stmanager.platform.system', return_value='Windows'), patch('stmanager.subprocess.run', return_value=mixed):
                 self.assertIsNone(stmanager.running_config_home())

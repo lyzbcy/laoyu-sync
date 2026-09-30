@@ -3,3 +3,4 @@ import os
 import tempfile
 _profile = tempfile.TemporaryDirectory(prefix='laoyu-tests-')
 os.environ['LAOYU_SYNC_DATA'] = _profile.name
+os.environ['LAOYU_ST_HOME'] = os.path.join(_profile.name, 'engine')

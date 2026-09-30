@@ -19,6 +19,7 @@ from pathlib import Path
 import activity
 import config
 from network import NetworkMonitor
+from status_summary import setup_summary
 _owned_process = None
 _detected_home = None
 
@@ -41,9 +42,9 @@ def running_config_home():
         for command in lines:
             if not isinstance(command, str):
                 continue
-            match = re.search(r'(?:^|\s)"?--?(?:home|config)(?:=|\s+)(?:"([^"]+)"|([^\s"]+))"?', command)
+            match = re.search(r'(?:^|\s)"--?(?:home|config)=([^"]+)"|(?:^|\s)--?(?:home|config)(?:=|\s+)(?:"([^"]+)"|([^\s"]+))', command)
             if match:
-                home = Path(match.group(1) or match.group(2)).expanduser()
+                home = Path(next(value for value in match.groups() if value)).expanduser()
                 if home.is_absolute() and (home / 'config.xml').is_file() and home not in homes:
                     homes.append(home)
             else:
@@ -66,6 +67,28 @@ def stop_owned():
             child.wait(timeout=10)
     _owned_process = None
 
+def config_candidates():
+    """Known per-user locations only; never scan user files or remote machines."""
+    if platform.system() == 'Windows':
+        local = Path(os.environ.get('LOCALAPPDATA', Path.home()))
+        roaming = Path(os.environ.get('APPDATA', Path.home()))
+        return list(dict.fromkeys([local / 'Syncthing', roaming / 'Syncthing',
+                                  local / 'syncthing', roaming / 'SyncTrayzor' / 'syncthing',
+                                  local / 'SyncTrayzor' / 'syncthing',
+                                  Path.home() / '.config' / 'syncthing']))
+    if platform.system() == 'Darwin':
+        return [Path.home() / 'Library/Application Support/Syncthing', Path.home() / '.config/syncthing']
+    return [Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'syncthing',
+            Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config')) / 'syncthing']
+
+
+def configured_folders(home):
+    try:
+        return len(ET.parse(home / 'config.xml').getroot().findall('folder'))
+    except (OSError, ET.ParseError):
+        return 0
+
+
 def engine_home():
     global _detected_home
     if os.environ.get('LAOYU_ST_HOME'):
@@ -76,13 +99,13 @@ def engine_home():
     if running:
         _detected_home = running
         return running
-    if platform.system() == 'Windows':
-        candidates = [Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Syncthing', Path(os.environ.get('APPDATA', Path.home())) / 'Syncthing']
-    elif platform.system() == 'Darwin':
-        candidates = [Path.home() / 'Library/Application Support/Syncthing', Path.home() / '.config/syncthing']
-    else:
-        candidates = [Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'syncthing', Path.home() / '.config/syncthing']
-    _detected_home = next((home for home in candidates if (home / 'config.xml').is_file()), candidates[0])
+    candidates = config_candidates()
+    existing = [home for home in candidates if (home / 'config.xml').is_file()]
+    populated = [home for home in existing if configured_folders(home)]
+    # A previous fresh install may have left an empty default config masking old projects.
+    # A running engine remains authoritative; do not switch its identity underneath it.
+    _detected_home = (populated[0] if len(populated) == 1 and not process_running()
+                      else next(iter(existing), candidates[0]))
     return _detected_home
 
 DEVICE_ID_RE = re.compile(r"^([A-Z2-7]{7}-){7}[A-Z2-7]{7}$")
@@ -104,11 +127,8 @@ _SYNCTHING_EXE_CANDIDATES = {
 
 def read_gui_config():
     """从 Syncthing 自身配置读 GUI 地址与 API key，返回 (base_url, api_key)。"""
-    candidates = [engine_home() / 'config.xml'] if os.environ.get('LAOYU_ST_HOME') else [
-        engine_home() / 'config.xml',
-        Path(os.environ.get("LOCALAPPDATA", "")) / "Syncthing" / "config.xml",
-        Path.home() / ".config" / "syncthing" / "config.xml",
-    ]
+    # GUI credentials, project config and engine home must belong to one identity.
+    candidates = [engine_home() / 'config.xml']
     for cfg in candidates:
         try:
             root = ET.parse(str(cfg)).getroot()
@@ -287,9 +307,14 @@ class STManager:
         }
         snap['network'] = self.network.status() if hasattr(self, 'network') else {'state': 'checking', 'peers': []}
         snap['syncthing']['source'] = 'existing' if getattr(self, '_existing_config', False) else 'managed'
+        home = engine_home()
+        snap['discovery'] = {'home': str(home), 'config_found': (home / 'config.xml').is_file(),
+                             'other_projects': any(p != home and configured_folders(p) for p in config_candidates())
+                             if not os.environ.get('LAOYU_ST_HOME') else False}
         self.client.base, self.client.key = read_gui_config()
         if not self.client.ready():
             snap["syncthing"].update({"running": False, "note": "未找到 Syncthing 配置"})
+            snap['setup'] = setup_summary(snap)
             return snap
         try:
             st = self.client.get("/rest/system/status")
@@ -297,6 +322,7 @@ class STManager:
             # 只有 API 不可达时才查进程（tasklist 很慢且会弹控制台，不能每 2 秒调）
             snap["syncthing"]["running"] = process_running()
             snap["syncthing"]["note"] = "接口未就绪（可能正在启动）"
+            snap['setup'] = setup_summary(snap)
             return snap
         snap["syncthing"].update({
             "api_ok": True, "uptime": st.get("uptime", 0),
@@ -352,10 +378,13 @@ class STManager:
                 "needBytes": need_bytes, "needFiles": need_files,
                 "speed": round(self._rates["out"] + self._rates["in"], 1),
             }
+            # Offers belong to the same engine snapshot; both dashboard and pet see them.
+            snap['pending_folders'] = self.pending_folders() if not folders else []
         except Exception as exc:
             activity.error("status aggregate failed: %s", exc)
             snap["syncthing"]["note"] = "状态聚合失败"
             snap["syncthing"]["api_ok"] = False
+        snap['setup'] = setup_summary(snap)
         return snap
 
     def _sample_speed(self, total):

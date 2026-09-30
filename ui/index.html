@@ -43,7 +43,7 @@ window.addEventListener("error", function (e) {
       <a href="#/about" data-page="about">关于</a>
     </nav>
     <div class="side-foot">
-      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.1</span>
+      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.2</span>
     </div>
   </aside>
 
@@ -71,6 +71,7 @@ window.addEventListener("error", function (e) {
       <div id="onboarding" class="card onboarding">
         <h3 id="onboardingTitle">第一次使用？三步连起来</h3>
         <p id="onboardingSteps">① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a></p>
+        <details class="small mut"><summary>已有项目没有出现？查看识别位置</summary><p>当前读取：<span id="configLocation">正在检测</span></p><p>如果原同步工具使用其他位置，请先打开原工具，再启动助手。另一台电脑上的项目需要共享给本机，并选择接收位置。</p></details>
         <p class="mut small">同步会把修改和删除传到其他设备，请先用测试文件夹体验。新项目默认保留远端覆盖/删除的旧文件 30 天；同步不能代替备份。对方离线时，本机已同步不代表对方已收到。</p>
         <button id="btnEngineStart" class="btn small">重试启动引擎</button>
       </div>

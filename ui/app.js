@@ -259,7 +259,7 @@ function stateOf(s) {
   if (!s.syncthing.api_ok)
     return { key: "grey", text: "小助手正在热身，几秒后自动开始", color: "var(--grey)" };
   const fs = s.folders || [];
-  if (!fs.length) return {key: "grey", text: "还没有同步项目，选择文件夹开始", color: "var(--grey)"};
+  if (!fs.length) return {key: "teal", text: s.setup?.title || "正在识别同步项目", color: "var(--teal)"};
   if (fs.some(f => f.state === "unavailable")) return {key: "red", text: "部分项目状态暂时无法读取", color: "var(--red)"};
   if (fs.some(f => f.paused)) return {key: "orange", text: "有项目已暂停", color: "var(--orange)"};
   const badFolders = fs.filter((f) => f.state === "error");
@@ -299,13 +299,12 @@ function renderConnections() {
   $("networkBadge").textContent = n.connected ? '网络就绪' : n.state === 'checking' ? '检测中' : '网络状态';
   $("connectionCard").classList.toggle('connected', n.connected === true);
   const adopted = s.syncthing.api_ok && s.syncthing.source === 'existing';
-  $("onboardingTitle").textContent = n.connected ? '网络已连好，接下来选择要同步的文件' : '第一次使用？三步连起来';
-  $("onboardingSteps").innerHTML = n.connected
-    ? `不用重新设置 Tailscale。已有同步配对会自动沿用；<a href="#/folders">选一个文件夹共享</a>，或去 <a href="#/devices">添加尚未配对的同步设备</a>。`
-    : `① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a>`;
+  $("onboardingTitle").textContent = s.setup?.title || '正在识别同步项目';
+  $("onboardingSteps").textContent = s.setup?.detail || '正在读取本机的同步配置，请稍候';
   $("engineAdoption").textContent = adopted
     ? `已接入原有 Syncthing · 沿用 ${s.folders.length} 个项目和 ${s.devices.filter(d => !d.self).length} 台同步设备，不用重新配对`
-    : (n.connected ? '网络已经就绪；新同步项目仍需选择文件夹，并由对方确认共享。' : 'Tailscale 可选；同步设备的连接和文件进度会分别显示。');
+    : (s.setup?.detail || '正在读取同步配置');
+  $("configLocation").textContent = s.discovery?.home || '正在检测';
   const box = $("tailscalePeers");
   box.classList.toggle('hidden', !n.connected);
   if (n.connected) box.innerHTML = `<h3>已识别你的 Tailscale 网络</h3><p class="mut small">沿用现有连接。下方是网络设备；已有 Syncthing 配对自动沿用，新设备仍需双方确认文件共享。</p><div class="network-peers">${(n.peers || []).map(p => `<div class="network-peer"><span class="dot ${p.online ? 'green' : 'grey'}"></span><strong>${esc(p.name)}</strong><span class="mut small">${p.online ? '网络在线' : '网络离线'}</span></div>`).join('') || '<p class="mut">网络已连接，暂未发现其他节点。</p>'}</div>`;
@@ -429,10 +428,10 @@ function renderDash() {
     : (s.syncthing.note || "");
   const off = s.devices.filter((d) => !d.self && !d.connected).length;
   $("heroNext").innerHTML = s.folders.length === 0
-    ? `<a class="btn primary" href="#/folders">第一步：建一个同步项目</a>`
+    ? (s.setup?.key === 'checking' ? '' : `<a class="btn primary" href="${s.setup?.route || '#/devices'}">${s.setup?.key === 'receive' ? '接收已有项目' : '接入已有项目'}</a> <a class="btn" href="#/folders">选择新文件夹</a>`)
     : (off ? `<span class="mut small">有电脑离线中，回来后文件会自动补齐</span>` : "");
   $("dashFolders").innerHTML = s.folders.map(folderCard).join("") ||
-    `<div class="sticker-empty"><img src="/assets/stickers/第12弹-加油.png" alt="">还没有同步项目。建一个，然后把它分享给另一台电脑</div>`;
+    `<div class="sticker-empty"><img src="/assets/stickers/第12弹-加油.png" alt="">${esc(s.setup?.detail || '正在读取同步项目，请稍候')}</div>`;
   $("dashDevices").innerHTML = s.devices.map((d) =>
     `<span class="chip"><span class="dot ${d.self || d.connected ? "green" : "grey"}"></span>${esc(d.name)}${d.self ? "（本机）" : d.connected ? "" : " · 离线"}</span>`
   ).join("");
@@ -703,7 +702,7 @@ $("addFolderForm").addEventListener("submit", async (e) => {
 function renderFolderList() {
   if (!LAST_STATUS) return;
   $("folderList").innerHTML = LAST_STATUS.folders.map(folderCard).join("") ||
-    emptyWith("第12弹-加油.png", "还没有同步项目，在上面建一个吧");
+    emptyWith("第12弹-加油.png", LAST_STATUS.setup?.detail || "正在读取同步项目，请稍候");
 }
 
 /* ---------------- 动态 ---------------- */

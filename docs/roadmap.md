@@ -1,3 +1,11 @@
+## 2026-09-30 0.3.2 已有项目与小鱼修复（待发行）
+
+用户反馈另一台电脑网络已识别，但首页仍催新建、小鱼显示尚未配置。已修复含空格的完整引号home参数，增加SyncTrayzor等常用配置位置；没有运行引擎且仅一份有项目的旧配置时，优先旧配置，避免空默认配置遮挡。运行中的引擎与多身份不自动切换；GUI凭证仅读取所选home，避免错接另一身份。同步文件/身份不迁移不改写。
+
+后端setup摘要统一首页与小鱼：读取中、已有项目、待接收、另一份旧配置、网络就绪但本机无项目分别显示。首页提供接入与配置路径诊断，小鱼新增浅色状态卡、中文详情、直接处理入口，空项目不显示同步成功。Tailscale共享目录不会自行变成Syncthing项目；另一台用户电脑的实际旧工具类型仍待用户补充，不能宣称已在其电脑复现并修好。
+
+34项隔离单测通过；实际0.3.2 EXE前端/引擎ACK、可见窗口、小鱼开关、正常退出通过，verification/native-032/result.json。小鱼截图verification/adoption-032/pet-network-ready.png、pet-receive.png、pet-details.png。独立网页回归进行中；正式version.json保持0.3.1直到新包公开。
+
 ## 2026-09-30 公开发布
 
 用户明确授权公开发布、同步帮助站与上架软件中心。Windows0.3.1已公开：[发布页](https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.1)。安装版/ZIP/checksums的GitHub资产digest与固定CI文件逐字节SHA-256一致；两个公网下载URL HEAD200且长度一致，证据verification/public-release.json与public-downloads.json。根version.json同步正式0.3.1清单。Mac不作为正式资产。
