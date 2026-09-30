@@ -200,6 +200,7 @@ let HAS_PICKER = false;
 let FAILS = 0;
 let STATUS_TIMER, PENDING_TIMER;
 let SHARES_KEY = "", DEVICES_KEY = "", PENDING_KEY = "";
+let DESKTOP_READY = false;
 
 async function pollStatus() {
   try {
@@ -210,6 +211,9 @@ async function pollStatus() {
     if (!$("page-dash").classList.contains("hidden")) { renderDash(); renderDashErrors(); }
     if (!$("page-devices").classList.contains("hidden")) { renderDeviceList(); renderShareFolders(); }
     if (!$("page-folders").classList.contains("hidden")) { renderFolderList(); renderNewProjectDevices(); }
+    if (LAST_STATUS.syncthing.api_ok && !DESKTOP_READY && window.pywebview?.api?.confirm_ready) {
+      DESKTOP_READY = await window.pywebview.api.confirm_ready();
+    }
   } catch (e) {
     if (++FAILS >= 3) {
       $("statusText").textContent = friendly(e);

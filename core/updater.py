@@ -137,6 +137,8 @@ def apply_update(payload_file):
         or replacement != stage / 'new' or target == Path(target.anchor)
         or not (replacement / 'LaoyuSync.exe').is_file()):
         raise ValueError('无效更新事务目录')
+    result_file = Path(payload['data']) / 'update-result.json'
+    result_file.parent.mkdir(parents=True, exist_ok=True)
     kernel = ctypes.WinDLL('kernel32', use_last_error=True)
     kernel.OpenProcess.restype = ctypes.c_void_p
     kernel.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
@@ -147,10 +149,18 @@ def apply_update(payload_file):
         waited = kernel.WaitForSingleObject(handle, 60000)
         kernel.CloseHandle(handle)
         if waited != 0:
-            raise RuntimeError('旧版仍在运行，已取消更新，请关闭后重试')
+            result_file.write_text(json.dumps({'ok': False, 'error': '旧版仍在运行，已取消更新，请关闭后重试'}), encoding='utf-8')
+            return
+    elif ctypes.get_last_error() not in (0, 87):
+        result_file.write_text(json.dumps({'ok': False, 'error': '无法确认旧进程已退出，未修改安装目录'}), encoding='utf-8')
+        return
+    kernel.CreateJobObjectW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+    kernel.CreateJobObjectW.restype = ctypes.c_void_p
+    kernel.AssignProcessToJobObject.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
+    kernel.TerminateJobObject.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+    job = kernel.CreateJobObjectW(None, None)
     backup = target.with_name(target.name + '.previous-' + str(int(time.time())))
     ack = stage / 'healthy.json'
-    result_file = Path(payload['data']) / 'update-result.json'
     child = None
     try:
         for uninstaller in target.glob('unins*'):
@@ -163,11 +173,13 @@ def apply_update(payload_file):
             backup.rename(target)
             raise
         child = subprocess.Popen([str(target / 'LaoyuSync.exe'), '--upgrade-ack', str(ack)], cwd=target)
+        if not job or not kernel.AssignProcessToJobObject(job, ctypes.c_void_p(int(child._handle))):
+            raise RuntimeError('无法建立更新进程隔离，恢复旧版')
         deadline = time.time() + 60
         while time.time() < deadline:
             if ack.is_file():
                 result = json.loads(ack.read_text(encoding='utf-8'))
-                if result.get('version') == payload['version']:
+                if result.get('version') == payload['version'] and result.get('engine_ready') and result.get('renderer_ready'):
                     try:
                         import winreg
                         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r'Software\Microsoft\Windows\CurrentVersion\Uninstall\studio.laoyu.sync_is1', 0, winreg.KEY_READ | winreg.KEY_WRITE) as key:
@@ -183,13 +195,27 @@ def apply_update(payload_file):
             time.sleep(.5)
         raise RuntimeError('新版没有完成窗口启动，恢复旧版本')
     except Exception as exc:
+        if job:
+            kernel.TerminateJobObject(job, 1)
         if child and child.poll() is None:
-            child.terminate()
+            subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'], capture_output=True, creationflags=0x08000000, timeout=15)
             child.wait(timeout=15)
+        time.sleep(1)
         if backup.is_dir():
-            if target.is_dir():
-                target.rename(stage / 'failed-new')
-            backup.rename(target)
+            for attempt in range(10):
+                try:
+                    if target.is_dir():
+                        target.rename(stage / 'failed-new')
+                    backup.rename(target)
+                    break
+                except OSError:
+                    if attempt == 9:
+                        result_file.write_text(json.dumps({'ok': False, 'error': str(exc), 'recovery': str(backup)}), encoding='utf-8')
+                        return
+                    time.sleep(1)
         result_file.write_text(json.dumps({'ok': False, 'error': str(exc)}), encoding='utf-8')
         if (target / 'LaoyuSync.exe').is_file():
             subprocess.Popen([str(target / 'LaoyuSync.exe')], cwd=target)
+    finally:
+        if job:
+            kernel.CloseHandle(job)

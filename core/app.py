@@ -40,6 +40,22 @@ def background_init(mgr):
 class Bridge:
     """暴露给页面 JS 的本地能力（pywebview 才有；浏览器打开时自动降级）。"""
 
+    def __init__(self, mgr, ack=None):
+        self.mgr = mgr
+        self.ack = ack
+
+    def confirm_ready(self):
+        """Only the successfully booted renderer can confirm a healthy upgrade."""
+        if not self.ack:
+            return True
+        if not self.mgr.client.api_ok():
+            return False
+        import webview
+        if platform.system() == 'Windows' and not webview.windows[0].native.Visible:
+            return False
+        Path(self.ack).write_text(json.dumps({'version': version.__version__, 'engine_ready': True, 'renderer_ready': True}), encoding='utf-8')
+        return True
+
     def choose_folder(self):
         import webview
         result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
@@ -148,12 +164,10 @@ def main():
 
     window = webview.create_window(
         "捞鱼同步小助手", url, width=1180, height=780, min_size=(920, 620),
-        background_color="#F4F6FA", js_api=Bridge(),
+        background_color="#F4F6FA", js_api=Bridge(mgr, args.upgrade_ack),
     )
     activity.user("捞鱼同步小助手已启动")
     def loaded():
-        if args.upgrade_ack:
-            Path(args.upgrade_ack).write_text(json.dumps({'version': version.__version__}), encoding='utf-8')
         toggle_pet(config.get('pet_enabled'))
     window.events.loaded += loaded
     updater.EXIT_CALLBACK = window.destroy

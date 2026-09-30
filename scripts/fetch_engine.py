@@ -21,7 +21,7 @@ def main():
     root = Path(__file__).resolve().parent.parent
     cache = root / '.build-cache'
     cache.mkdir(exist_ok=True)
-    suffix = '.zip' if args.platform.startswith('windows') else '.tar.gz'
+    suffix = '.zip'
     name = f'syncthing-{args.platform}-v{VERSION}{suffix}'
     checksums = fetch(BASE + 'sha256sum.txt.asc').decode()
     expected = next(line.split()[0] for line in checksums.splitlines() if line.strip().endswith(name))
@@ -32,13 +32,15 @@ def main():
         raise RuntimeError('Official Syncthing checksum mismatch')
     engine = root / 'engine'
     engine.mkdir(exist_ok=True)
-    binary = 'syncthing.exe' if suffix == '.zip' else 'syncthing'
+    binary = 'syncthing.exe' if args.platform.startswith('windows') else 'syncthing'
     if suffix == '.zip':
         with zipfile.ZipFile(archive) as z:
             for entry in z.infolist():
                 basename = Path(entry.filename).name
                 if basename in (binary, 'LICENSE.txt', 'AUTHORS.txt'):
                     (engine / basename).write_bytes(z.read(entry))
+        if binary == 'syncthing':
+            (engine / binary).chmod(0o755)
     else:
         with tarfile.open(archive) as t:
             for entry in t.getmembers():

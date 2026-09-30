@@ -22,7 +22,7 @@ CloseApplications=yes
 RestartApplications=no
 LicenseFile=..\LICENSE
 [Languages]
-Name: "chinesesimp"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 [Tasks]
 Name: "desktopicon"; Description: "创建桌面快捷方式"; Flags: unchecked
 Name: "autostart"; Description: "登录 Windows 时打开同步助手"; Flags: unchecked
