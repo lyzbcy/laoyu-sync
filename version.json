@@ -1,5 +1,7 @@
 {
-  "version": "0.2.0",
-  "notes": "改名「捞鱼同步小助手」；同步改用『项目』制；界面全面翻新；小精灵换新形象",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/latest"
+  "version": "0.3.1",
+  "notes": "Windows无边框窗口、自动识别现有Tailscale连接、沿用原有Syncthing项目与配对、安全更新和失败恢复",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.1/laoyu-sync-0.3.1-win-x64.zip",
+  "sha256": "3b0a823d02afce863ca529b8efa2201291d34aa016afb353499eeaee337f2167",
+  "sizeBytes": 41864320
 }

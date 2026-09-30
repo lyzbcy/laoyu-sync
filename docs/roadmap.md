@@ -1,3 +1,9 @@
+## 2026-09-30 公开发布
+
+用户明确授权公开发布、同步帮助站与上架软件中心。Windows0.3.1已公开：[发布页](https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.1)。安装版/ZIP/checksums的GitHub资产digest与固定CI文件逐字节SHA-256一致；两个公网下载URL HEAD200且长度一致，证据verification/public-release.json与public-downloads.json。根version.json同步正式0.3.1清单。Mac不作为正式资产。
+
+软件中心0.7.4打包版31核心测试及正常/小窗口冒烟通过，二进制已公开于lyzbcy/laoyu-software-center-downloads，源码仍私有。工作室服务器镜像及更新清单需要独立SSH发布权限；不宣称已经切换。帮助站发布与回读结果见后续记录。
+
 # 0.3.1 窗口与已有网络接入交付
 
 现状：Windows安装/便携包验收；尚未公开发布。运行时提交9f43183575ea58ae510cfa9ab2781e300b39eddc，Windows/Mac CI [36697806429](https://github.com/lyzbcy/laoyu-sync/actions/runs/36697806429)成功。
