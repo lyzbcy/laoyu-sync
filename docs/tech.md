@@ -1,11 +1,11 @@
 # 架构与数据
 
-现状：开发中。负责人：捞鱼工作室。最后更新：2026-09-30。
+现状：Windows0.3.0实现与回归通过。负责人：捞鱼工作室。最后更新：2026-09-30。
 
-Python 标准库业务核心 + pywebview 桌面窗口 + 原生 HTML/JS/CSS。PyInstaller onedir 包包含 UI、桌面宠物和 Syncthing 引擎。Windows Inno Setup 每用户安装，Mac 独立 CI 构建。
+Python标准库业务核心 + pywebview桌面窗口 + 原生HTML/JS/CSS。PyInstaller onedir包含UI、宠物与Syncthing。Windows Inno Setup每用户安装；Mac独立CI、架构对应官方引擎。
 
-程序资源只读；自身配置与轮转日志存放用户数据目录 LaoyuSync。Syncthing 配置始终由引擎管理，已有配置兼容，新增项目默认使用回收站版本管理。测试通过 LAOYU_SYNC_DATA、LAOYU_ST_HOME、LAOYU_SYNC_PORT 隔离，不能拿真实同步文件夹做测试。
+程序资源只读；配置与轮转日志在用户数据目录LaoyuSync。引擎已有config.xml兼容读取，第一次生成后自动重新读取；同步配置始终由Syncthing管理，新项目默认30天回收站版本管理。测试用LAOYU_SYNC_DATA、LAOYU_ST_HOME、LAOYU_SYNC_PORT、LAOYU_ST_GUI隔离。
 
-本机网关只监听回环；API 校验令牌、Host、Origin；外部浏览器桥仅允许 HTTP(S)。诊断日志隐藏令牌，不附带文件内容。小精灵使用同一网关快照，不重复扫描同步配置。
+网关只监听回环，API校验令牌、Host和Origin，限制JSON大小和静态路径。浏览器桥只打开HTTP(S)，日志隐藏token/API key，不收集遥测和文件内容。小鱼读取同一网关，不独立把未知状态报成功。退出只停止自己启动的引擎，不停止已有独立引擎。
 
-升级按 docs/updater.md；打包按 docs/packaging.md；产品体验验收按 docs/testing.md。
+更新与恢复见updater.md；安装与软件中心见packaging.md；隔离测试见testing.md。

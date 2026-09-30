@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "laoyu-sync",
+  "name": "捞鱼同步小助手",
+  "version": "0.3.0",
+  "platform": "win32",
+  "architecture": "x64",
+  "executable": "LaoyuSync.exe",
+  "category": "桌面效率",
+  "summary": "中文引导电脑间同步文件，桌面小鱼实时展示状态。",
+  "siteUrl": "https://github.com/lyzbcy/laoyu-sync",
+  "iconPath": "assets/app.ico",
+  "videoIds": [],
+  "package": {
+    "type": "portable-zip",
+    "path": "dist/laoyu-sync-0.3.0-win-x64.zip",
+    "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.0/laoyu-sync-0.3.0-win-x64.zip",
+    "sha256": "fa8c02a9b4675d9afafa6e271df66f2f96e81642c61c321b1ce9d7cff9eca8cd"
+  }
+}
