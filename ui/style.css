@@ -492,7 +492,7 @@ input[type="checkbox"] { accent-color: var(--green); width: auto; }
 .desktop-window .side {height:100%;overflow-y:auto}
 .desktop-window .main {height:100%;overflow-y:auto;max-width:none}
 .side {background:#1e302a;padding:25px 14px 20px;width:210px}
-.brand {padding-bottom:28px}.brand-sub {color:#a0b9ad;font-size:10px}.brand-logo {background:#3c8065;box-shadow:none}
+.brand {padding:2px 0 28px;gap:8px}.brand-name {font-size:14px;white-space:nowrap}.brand-sub {color:#a0b9ad;font-size:10px}.brand-logo {background:#3c8065;box-shadow:none}
 nav {gap:7px}nav a {padding:11px 14px;color:#c0d1c8}
 nav a.active {background:#345045;box-shadow:inset 3px 0 #83c9a6}
 .main {background:#f3f6f4;padding:18px 28px 32px}
