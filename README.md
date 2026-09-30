@@ -25,6 +25,7 @@ python -m pip install -r requirements.txt
 python -m unittest discover -s tests -v
 python scripts/fetch_engine.py
 python scripts/make_icon.py
+python scripts/prepare_resources.py
 python core/app.py --console
 python -m PyInstaller --noconfirm LaoyuSync.spec
 python scripts/package.py
