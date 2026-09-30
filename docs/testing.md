@@ -15,3 +15,5 @@ Windows scripts/verify_windows.py验证完整EXE、可见窗口、前端+引擎A
 交付清理：仅关闭18390/18391隔离助手与其测试引擎；最终安装器已通过实际卸载，测试卸载登记移除，验收JSON/日志保留。原用户引擎和桌面bat未动。
 
 0.3.1新增已有网络7项，总计Windows30项/Mac23通用项（7个Windows helper跳过）。独立Kimi对五页×两尺寸、网络状态模拟和既有配置文案验收，报告verification/ui-network-regression.md；原生无框44px以及点击真实页面按钮最大化/还原/最小化/关闭验证见verification/chrome-native/result.json。
+
+0.3.1实际安装与卸载通过，隔离测试助手26390及测试引擎26384已清理；只处理本次测试进程，原用户引擎保持运行。
