@@ -2,11 +2,11 @@
 
 用户明确授权公开发布、同步帮助站与上架软件中心。Windows0.3.1已公开：[发布页](https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.1)。安装版/ZIP/checksums的GitHub资产digest与固定CI文件逐字节SHA-256一致；两个公网下载URL HEAD200且长度一致，证据verification/public-release.json与public-downloads.json。根version.json同步正式0.3.1清单。Mac不作为正式资产。
 
-软件中心0.7.4打包版31核心测试及正常/小窗口冒烟通过，二进制已公开于lyzbcy/laoyu-software-center-downloads，源码仍私有。工作室服务器镜像及更新清单需要独立SSH发布权限；不宣称已经切换。帮助站发布与回读结果见后续记录。
+软件中心0.7.4打包版31核心测试及正常/小窗口冒烟通过，二进制已公开于lyzbcy/laoyu-software-center-downloads，源码仍私有。工作室服务器镜像及更新清单需要独立SSH发布权限；不宣称已经切换。帮助站原地址已更新至v1.15.0，公网HTML SHA-256与发布文件完全一致（c1a9f3ee095ba8d77e892cbd8a2a80c170f2e646ce0d1c3b0dbc583de6430524），证据verification/published-help-page.json。同步助手详情：https://help.wshoto.com/resource/5ea68b60e5b24df78ddce46cf1614671/27da304c.html#project/laoyu-sync。
 
 # 0.3.1 窗口与已有网络接入交付
 
-现状：Windows安装/便携包验收；尚未公开发布。运行时提交9f43183575ea58ae510cfa9ab2781e300b39eddc，Windows/Mac CI [36697806429](https://github.com/lyzbcy/laoyu-sync/actions/runs/36697806429)成功。
+现状：Windows安装/便携包验收通过，0.3.1已公开发布。运行时提交9f43183575ea58ae510cfa9ab2781e300b39eddc，Windows/Mac CI [36697806429](https://github.com/lyzbcy/laoyu-sync/actions/runs/36697806429)成功。
 
 - 移除Windows原生白色标题栏，用44px自绘标题栏、统一小鱼标识；简化侧栏与同步概览，修复920px品牌换行。
 - Tailscale已有登录与网络自动只读识别，展示节点在线；不重组网、不重登、不改网络设置。
@@ -21,9 +21,9 @@
 
 最终EXE直接接入现有1项目/3设备，Tailscale在线节点与CLI一致（测试过程中2台变1台），配置哈希保持，退出不关闭既有引擎。窗口nonclient_height=0，无原生标题栏：verification/adoption-packaged/result.json。全新隔离引擎启动/renderer ACK/小鱼/正常退出：verification/native-031-frozen/result.json。安装器实际安装日志verification/install-031.log，安装后启动verification/installed-031-smoke/result.json；启动器strict --installed报告verification/launcher-adapter-031-report.json。
 
-真实同版本完整包切换和启动故障回滚分别见verification/upgrade-ok-b6_spp8g/verification-result.json与verification/upgrade-fault-h5jp7cj3/verification-result.json，保留设备身份/用户数据和可见窗口。公网跨版本升级仍待正式资产发布。
+真实同版本完整包切换和启动故障回滚分别见verification/upgrade-ok-b6_spp8g/verification-result.json与verification/upgrade-fault-h5jp7cj3/verification-result.json，保留设备身份/用户数据和可见窗口。公网版本清单及正式资产已发布并回读验证；跨版本自动升级尚未实测。
 
-Windows包未签名，干净系统WebView2缺失场景未实机验；Mac仅构建，无签名/公证/实机验收。软件中心0.7.4候选目录同步新哈希，正式0.7.3需新版客户端。根version.json仍旧正式清单，不指向尚未公开的0.3.1包。
+Windows包未签名，干净系统WebView2缺失场景未实机验；Mac仅构建，无签名/公证/实机验收。软件中心0.7.4已发行并同步新哈希；0.7.3用户需安装新版客户端。根version.json已切换至公开0.3.1资产。
 
 以下保留0.3.0的历史验收记录。
 

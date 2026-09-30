@@ -10,6 +10,6 @@ Inno每用户安装默认LocalAppData/Programs/LaoyuSync，无管理员要求；
 
 Windows包尚无代码签名。Mac单独CI构建且引擎匹配runner架构；未经签名公证/实机验证，不标为正式Mac交付。Mac通过发布页更新；Windows实现受校验完整包事务与恢复。
 
-启动器入口E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md。描述文件launcher-adapter.json、严格报告与真实安装识别通过。软件中心0.7.4候选源码含目录、图标、installed和portable白名单；正式0.7.3需升级客户端。
+启动器入口E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md。描述文件launcher-adapter.json、严格报告与真实安装识别通过。软件中心0.7.4已公开发行，含目录、图标、installed和portable白名单；0.7.3需升级客户端。
 
 根version.json仅正式发行清单；dist/version.json为固定候选包清单。发布必须使用已验收原始字节，不能重压缩后沿用旧哈希。
