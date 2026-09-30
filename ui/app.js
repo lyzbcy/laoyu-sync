@@ -354,7 +354,7 @@ function stateLabel(f) {
 }
 
 function folderCard(f) {
-  const color = { syncing: "var(--blue)", scanning: "var(--teal)" }[f.state] ||
+  const color = f.paused || f.state === 'unavailable' ? 'var(--grey)' : { syncing: "var(--blue)", scanning: "var(--teal)" }[f.state] ||
     (f.pullErrors > 0 || f.state === "error" ? "var(--red)" :
      f.needFiles > 0 ? "var(--orange)" : "var(--green)");
   const extra = [];

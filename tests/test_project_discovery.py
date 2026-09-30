@@ -47,3 +47,8 @@ class ProjectDiscoveryTests(unittest.TestCase):
         self.assertEqual(state[3], 0)
         snap['syncthing']['api_ok'] = False
         self.assertEqual(setup_summary(snap)['key'], 'checking')
+
+    def test_pet_never_turns_unverified_completion_into_success(self):
+        folder = dict(state='idle', globalBytes=0, inSyncBytes=0, pullErrors=0, needFiles=0, needBytes=0)
+        snap = dict(api_ok=True, folders=[folder], devices=[], total={'complete': False})
+        self.assertEqual(pet.aggregate(snap)[0], 'pending')

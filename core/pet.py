@@ -772,6 +772,8 @@ def aggregate(snap):
             return 'pending', '项目已暂停', '双击管理同步项目', 0, 0
     result = _original_aggregate(snap)
     if result[0] == 'ok':
+        if 'total' in snap and not snap['total'].get('complete'):
+            return 'pending', '正在确认状态', '双击查看项目进度', 0, 0
         return result[0], '本机已同步', result[2], result[3], result[4]
     return result
 
