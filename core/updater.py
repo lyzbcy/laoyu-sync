@@ -30,7 +30,17 @@ def trusted_url(url, manifest=False):
 
 def status():
     with _lock:
-        return dict(_state)
+        current = dict(_state)
+    if current['stage'] in ('idle', 'restarting'):
+        try:
+            result = json.loads((config.DATA_DIR / 'update-result.json').read_text(encoding='utf-8'))
+            if result.get('ok'):
+                current.update(stage='complete', percent=100, message='已更新至 v' + result.get('version', ''))
+            else:
+                current.update(stage='failed', percent=0, message='更新未完成，旧程序已保留：' + result.get('error', '请重试') + '。可重试或从发布页手动下载')
+        except Exception:
+            pass
+    return current
 
 def progress(stage, percent, message):
     with _lock:
@@ -114,6 +124,9 @@ def _download(info):
                    'data': str(config.DATA_DIR), 'stage': str(stage)}
         payload_file = stage / 'transaction.json'
         payload_file.write_text(json.dumps(payload), encoding='utf-8')
+        previous_result = config.DATA_DIR / 'update-result.json'
+        if previous_result.is_file():
+            previous_result.unlink()
         subprocess.Popen([str(helper_dir / 'LaoyuSync.exe'), '--apply-update', str(payload_file)], creationflags=0x08000000)
         progress('restarting', 100, '下载完成，正在重启新版')
         activity.user('更新包校验通过，正在重启')

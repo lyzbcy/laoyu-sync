@@ -704,6 +704,12 @@ async function loadVersion() {
     $("verBadge").textContent = "v" + v.version;
     $("verBadge").onclick = () => showChangelog(v);
     const u = v.update || {};
+    const transaction = await api("GET", "/api/update/status");
+    if (["failed", "complete"].includes(transaction.stage)) {
+      $("updateProgress").classList.remove("hidden");
+      $("updateMeter").value = transaction.percent;
+      $("updateMessage").textContent = transaction.message;
+    }
     if (u.enabled && u.has_update) {
       $("updateBanner").classList.remove("hidden");
       $("updateText").textContent = `发现新版本 v${u.remote_version}（现在 v${v.version}）`;
