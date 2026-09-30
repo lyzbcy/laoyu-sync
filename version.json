@@ -1,7 +1,7 @@
 {
-  "version": "0.3.1",
-  "notes": "Windows无边框窗口、自动识别现有Tailscale连接、沿用原有Syncthing项目与配对、安全更新和失败恢复",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.1/laoyu-sync-0.3.1-win-x64.zip",
-  "sha256": "3b0a823d02afce863ca529b8efa2201291d34aa016afb353499eeaee337f2167",
-  "sizeBytes": 41864320
+  "version": "0.3.2",
+  "notes": "修复旧项目配置识别；首页、小鱼统一区分项目待接收与网络就绪；小鱼状态卡与中文详情",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.2/laoyu-sync-0.3.2-win-x64.zip",
+  "sha256": "fb8ee425ef0c34420805f6eb06556e42ba3bcca8dc1ef982a66c6236171bee06",
+  "sizeBytes": 41869983
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "laoyu-sync",
   "name": "捞鱼同步小助手",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "platform": "win32",
   "architecture": "x64",
   "executable": "LaoyuSync.exe",
@@ -13,8 +13,8 @@
   "videoIds": [],
   "package": {
     "type": "portable-zip",
-    "path": "dist/laoyu-sync-0.3.1-win-x64.zip",
-    "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.1/laoyu-sync-0.3.1-win-x64.zip",
-    "sha256": "3b0a823d02afce863ca529b8efa2201291d34aa016afb353499eeaee337f2167"
+    "path": "dist/laoyu-sync-0.3.2-win-x64.zip",
+    "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.2/laoyu-sync-0.3.2-win-x64.zip",
+    "sha256": "fb8ee425ef0c34420805f6eb06556e42ba3bcca8dc1ef982a66c6236171bee06"
   }
 }
