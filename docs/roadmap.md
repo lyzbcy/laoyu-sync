@@ -1,3 +1,28 @@
+# 0.3.1 窗口与已有网络接入交付
+
+现状：Windows安装/便携包验收；尚未公开发布。运行时提交9f43183575ea58ae510cfa9ab2781e300b39eddc，Windows/Mac CI [36697806429](https://github.com/lyzbcy/laoyu-sync/actions/runs/36697806429)成功。
+
+- 移除Windows原生白色标题栏，用44px自绘标题栏、统一小鱼标识；简化侧栏与同步概览，修复920px品牌换行。
+- Tailscale已有登录与网络自动只读识别，展示节点在线；不重组网、不重登、不改网络设置。
+- 原有Syncthing项目/设备/身份直接沿用；网络与文件同步状态分开；就绪网络用户从选择文件开始。
+
+|最终原始CI资产|SHA-256|
+|---|---|
+|laoyu-sync-0.3.1-win-x64.zip|3b0a823d02afce863ca529b8efa2201291d34aa016afb353499eeaee337f2167|
+|laoyu-sync-0.3.1-win-x64-setup.exe|8cce0fb96c7b2418466111c767d42c3ced99686ee9a15cd75145f470b8d747ee|
+
+验收：Windows30项/Mac23通用项通过（7个Windows helper跳过）；独立Kimi五页×两尺寸与网络状态负例通过，verification/ui-network-regression.md。真实源码原生窗口FormBorderStyle=None、DOM44px、点击网页按钮最大化/还原/最小化/关闭通过，verification/chrome-native/result.json。没有声称原生拖动已实测。
+
+最终EXE直接接入现有1项目/3设备，Tailscale在线节点与CLI一致（测试过程中2台变1台），配置哈希保持，退出不关闭既有引擎。窗口nonclient_height=0，无原生标题栏：verification/adoption-packaged/result.json。全新隔离引擎启动/renderer ACK/小鱼/正常退出：verification/native-031-frozen/result.json。安装器实际安装日志verification/install-031.log，安装后启动verification/installed-031-smoke/result.json；启动器strict --installed报告verification/launcher-adapter-031-report.json。
+
+真实同版本完整包切换和启动故障回滚分别见verification/upgrade-ok-b6_spp8g/verification-result.json与verification/upgrade-fault-h5jp7cj3/verification-result.json，保留设备身份/用户数据和可见窗口。公网跨版本升级仍待正式资产发布。
+
+Windows包未签名，干净系统WebView2缺失场景未实机验；Mac仅构建，无签名/公证/实机验收。软件中心0.7.4候选目录同步新哈希，正式0.7.3需新版客户端。根version.json仍旧正式清单，不指向尚未公开的0.3.1包。
+
+以下保留0.3.0的历史验收记录。
+
+---
+
 # 0.3.0 开发交付与验收
 
 现状：Windows 开发包完成验收，尚未公开发布；Mac 完成 CI 构建，待实机与签名公证。

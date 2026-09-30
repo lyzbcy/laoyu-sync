@@ -6,6 +6,8 @@
 
 Windows 完整包内置 Python 与 Syncthing，无需另外安装。下载入口 https://github.com/lyzbcy/laoyu-sync/releases 。正式发布与验收状态以 docs/roadmap.md 为准，源码推送不代表包已公开。
 
+已有 Tailscale 会自动识别，无需重新组网；已有 Syncthing 的项目、配对和身份直接沿用。网络在线与文件同步状态分别显示。
+
 1. 两台电脑安装并打开助手；便携 ZIP 完整解压后打开 LaoyuSync.exe。
 2. 在「设备与配对」交换电脑号码，互相添加并接受。
 3. 在「同步项目」选择文件夹，共享给对方；对方选择保存位置接收。

@@ -1,12 +1,12 @@
 # 构建与交付
 
-现状：0.3.0 Windows原始CI安装/便携包验收通过，公开发行待完成；Mac CI通过，待实机。
+现状：0.3.1 Windows原始CI安装/便携包验收通过，公开发行待完成；Mac CI通过，待实机。
 
 负责人：捞鱼工作室。最后更新：2026-09-30。
 
 稳定产品ID laoyu-sync，主程序LaoyuSync.exe，AppID studio.laoyu.sync。PyInstaller onedir，ZIP根目录放主程序与完整_internal资源。官方Syncthing 2.1.5下载与上游校验值匹配，不携带开发者config.xml、设备密钥或token。THIRD_PARTY_NOTICES与实际依赖许可证随包交付。
 
-Inno每用户安装默认LocalAppData/Programs/LaoyuSync，无管理员要求；提供开始菜单和卸载登记，桌面快捷方式/开机自启默认关闭。用户同步文件/配置与程序分离。最终CI安装器已安装到verification/installed并启动验收，详细证据与精确哈希见roadmap.md。
+Inno每用户安装默认LocalAppData/Programs/LaoyuSync，无管理员要求；提供开始菜单和卸载登记，桌面快捷方式/开机自启默认关闭。用户同步文件/配置与程序分离。最终CI安装器已安装到verification/installed-031并启动验收，详细证据与精确哈希见roadmap.md。
 
 Windows包尚无代码签名。Mac单独CI构建且引擎匹配runner架构；未经签名公证/实机验证，不标为正式Mac交付。Mac通过发布页更新；Windows实现受校验完整包事务与恢复。
 
