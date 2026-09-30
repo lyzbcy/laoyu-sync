@@ -1,4 +1,5 @@
 import json
+import io
 import bootstrap
 import os
 from pathlib import Path
@@ -13,6 +14,24 @@ import version
 import updater
 
 class VersionContracts(unittest.TestCase):
+    def test_bad_download_hash_never_launches_helper(self):
+        class Response(io.BytesIO):
+            headers = {'Content-Length': '7'}
+        with tempfile.TemporaryDirectory() as temp:
+            executable = Path(temp) / 'app/LaoyuSync.exe'
+            with patch.object(sys, 'executable', str(executable)), patch('updater.urllib.request.urlopen', return_value=Response(b'corrupt')), patch('updater.subprocess.Popen') as launch, patch.dict(updater._state, {'stage':'downloading'}, clear=True):
+                updater._download({'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/app-win-x64.zip','sha256':'0'*64})
+                launch.assert_not_called()
+                self.assertEqual(updater.status()['stage'], 'failed')
+                self.assertIn('校验失败', updater.status()['message'])
+
+    def test_duplicate_update_does_not_start_another_worker(self):
+        info = {'has_update':True,'remote_version':'1.0.0','sha256':'a'*64,'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/app-win-x64.zip'}
+        with patch.object(sys, 'frozen', True, create=True), patch.object(sys, 'platform', 'win32'), patch('version.check', return_value=info), patch('updater.threading.Thread') as worker, patch.dict(updater._state, {'stage':'preparing'}, clear=True):
+            with self.assertRaises(ValueError):
+                updater.start()
+            worker.assert_not_called()
+
     def test_semver_and_preview(self):
         self.assertGreater(version.semver_tuple('0.10.0'), version.semver_tuple('0.9.9'))
         self.assertEqual(version.semver_tuple('1.0.0-beta'), (0, 0, 0))
