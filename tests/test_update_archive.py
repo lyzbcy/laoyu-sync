@@ -1,5 +1,6 @@
 """更新包路径回归：仅创建临时 zip，永不启动程序或写入安装目录。"""
 import sys
+import bootstrap
 import tempfile
 import unittest
 import zipfile

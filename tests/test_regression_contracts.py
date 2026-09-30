@@ -1,5 +1,6 @@
 """发布阻断回归：纯隔离假引擎，不读取/写入真实 Syncthing 配置。"""
 import copy
+import bootstrap
 import sys
 import unittest
 from pathlib import Path

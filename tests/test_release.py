@@ -1,4 +1,5 @@
 import json
+import bootstrap
 import os
 from pathlib import Path
 import sys
@@ -7,7 +8,6 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'core'))
-os.environ['LAOYU_SYNC_DATA'] = tempfile.mkdtemp(prefix='laoyu-unit-')
 import config
 import version
 import updater
@@ -20,6 +20,7 @@ class VersionContracts(unittest.TestCase):
 
     def test_failed_daily_attempt_manual_retry(self):
         config.set('last_update_attempt', '')
+        config.set('last_update_check', '')
         config.set('_update_cache', {})
         with patch('version.urllib.request.urlopen', side_effect=OSError('offline')) as req:
             self.assertTrue(version.check().get('error'))
