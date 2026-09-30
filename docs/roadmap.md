@@ -4,7 +4,7 @@
 
 后端setup摘要统一首页与小鱼：读取中、已有项目、待接收、另一份旧配置、网络就绪但本机无项目分别显示。首页提供接入与配置路径诊断，小鱼新增浅色状态卡、中文详情、直接处理入口，空项目不显示同步成功。Tailscale共享目录不会自行变成Syncthing项目；另一台用户电脑的实际旧工具类型仍待用户补充，不能宣称已在其电脑复现并修好。
 
-35项隔离单测通过；实际0.3.2 EXE前端/引擎ACK、可见窗口、小鱼开关、正常退出通过，verification/native-032/result.json。小鱼截图verification/adoption-032/pet-network-ready.png、pet-receive.png、pet-details.png。独立Kimi回归30页面与8路径诊断通过，verification/adoption-032/web-regression.md。最终CI 36728562198（0d6e3b9）Windows/Mac成功；CI原始ZIP真实EXE验收通过，verification/native-032-ci/result.json。0.3.2已公开发布，资产digest/HEAD长度已核验，正式version.json同步0.3.2。
+35项隔离单测通过；实际0.3.2 EXE前端/引擎ACK、可见窗口、小鱼开关、正常退出通过，verification/native-032/result.json。小鱼截图verification/adoption-032/pet-network-ready.png、pet-receive.png、pet-details.png。独立Kimi回归30页面与8路径诊断通过，verification/adoption-032/web-regression.md。最终CI 36728562198（0d6e3b9）Windows/Mac成功；CI原始ZIP真实EXE验收通过，verification/native-032-ci/result.json。0.3.2已公开发布，资产digest/HEAD长度已核验，正式version.json同步0.3.2。帮助页在保留其他任务v1.16.0更新基础上发布v1.16.1，同步助手入口指向0.3.2；公网HTML逐字节回读一致，verification/adoption-032/public-help.json。软件中心0.7.4内置目录仍为0.3.1，用户可通过同步助手自身检查更新或新版安装器升级，不声称旧软件中心目录已经切换。
 
 ## 2026-09-30 公开发布
 
