@@ -207,6 +207,7 @@ async function pollStatus() {
     LAST_STATUS = await api("GET", "/api/status");
     FAILS = 0;
     renderCapsule();
+    renderConnections();
     renderPendingAlert();
     if (!$("page-dash").classList.contains("hidden")) { renderDash(); renderDashErrors(); }
     if (!$("page-devices").classList.contains("hidden")) { renderDeviceList(); renderShareFolders(); }
@@ -284,6 +285,47 @@ function renderCapsule() {
   const speed = fmtSpeed(s.total.speed);
   $("speedInfo").textContent = speed ? `↑↓ ${speed}` : "";
 }
+
+function renderConnections() {
+  const s = LAST_STATUS, n = s.network || {state: 'checking', peers: []};
+  const titles = {connected: 'Tailscale 已连接', not_installed: '使用现有网络同步',
+    needs_login: 'Tailscale 等待登录', needs_auth: 'Tailscale 等待授权', stopped: 'Tailscale 已暂停',
+    starting: 'Tailscale 正在连接', unavailable: 'Tailscale 状态暂时无法读取', checking: '正在识别已有连接'};
+  $("networkTitle").textContent = titles[n.state] || titles.unavailable;
+  const online = (n.peers || []).filter(p => p.online).length;
+  $("networkDetail").textContent = n.connected
+    ? `已沿用你的连接 · ${online} 台 Tailscale 设备在线 · 无需重新登录或组网`
+    : (n.note || '正在识别本机网络');
+  $("networkBadge").textContent = n.connected ? '网络就绪' : n.state === 'checking' ? '检测中' : '网络状态';
+  $("connectionCard").classList.toggle('connected', n.connected === true);
+  const adopted = s.syncthing.api_ok && s.syncthing.source === 'existing';
+  $("onboardingTitle").textContent = n.connected ? '网络已连好，接下来选择要同步的文件' : '第一次使用？三步连起来';
+  $("onboardingSteps").innerHTML = n.connected
+    ? `不用重新设置 Tailscale。已有同步配对会自动沿用；<a href="#/folders">选一个文件夹共享</a>，或去 <a href="#/devices">添加尚未配对的同步设备</a>。`
+    : `① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a>`;
+  $("engineAdoption").textContent = adopted
+    ? `已接入原有 Syncthing · 沿用 ${s.folders.length} 个项目和 ${s.devices.filter(d => !d.self).length} 台同步设备，不用重新配对`
+    : (n.connected ? '网络已经就绪；新同步项目仍需选择文件夹，并由对方确认共享。' : 'Tailscale 可选；同步设备的连接和文件进度会分别显示。');
+  const box = $("tailscalePeers");
+  box.classList.toggle('hidden', !n.connected);
+  if (n.connected) box.innerHTML = `<h3>已识别你的 Tailscale 网络</h3><p class="mut small">沿用现有连接。下方是网络设备；已有 Syncthing 配对自动沿用，新设备仍需双方确认文件共享。</p><div class="network-peers">${(n.peers || []).map(p => `<div class="network-peer"><span class="dot ${p.online ? 'green' : 'grey'}"></span><strong>${esc(p.name)}</strong><span class="mut small">${p.online ? '网络在线' : '网络离线'}</span></div>`).join('') || '<p class="mut">网络已连接，暂未发现其他节点。</p>'}</div>`;
+}
+
+async function initWindowChrome() {
+  if (!window.pywebview?.api?.desktop_info) return;
+  const info = await window.pywebview.api.desktop_info();
+  if (!info.frameless) return;
+  document.body.classList.add('desktop-window');
+  $("windowBar").classList.remove('hidden');
+  document.querySelectorAll('[data-window-action]').forEach(button => {
+    button.onclick = async () => {
+      try { await window.pywebview.api.window_action(button.dataset.windowAction); }
+      catch(e) { toast('窗口操作未完成，请重试'); }
+    };
+  });
+}
+window.addEventListener('pywebviewready', () => initWindowChrome().catch(() => {}));
+initWindowChrome().catch(() => {});
 
 /* ---------------- 待处理提醒（横幅 + 导航红点） ---------------- */
 
@@ -372,6 +414,7 @@ async function removeFolderClick(e) {
 function renderDash() {
   const s = LAST_STATUS;
   $("onboarding").classList.toggle("hidden", s.folders.length > 0);
+  $("btnEngineStart").classList.toggle('hidden', s.syncthing.api_ok);
   const st = stateOf(s);
   const pct = Math.min(100, s.total.pct);
   $("ringPct").textContent = s.syncthing.api_ok && s.folders.length && !s.folders.some(f => f.state === "unavailable") ? fmtPct(s.total.pct) : "—";

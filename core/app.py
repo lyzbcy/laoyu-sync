@@ -63,6 +63,24 @@ class Bridge:
             return str(result[0])
         return ""
 
+    def window_action(self, action):
+        import webview
+        window = webview.windows[0]
+        if action == 'minimize':
+            window.minimize()
+        elif action == 'maximize':
+            if window.native.WindowState.ToString() == 'Maximized':
+                window.restore()
+            else:
+                window.maximize()
+        elif action == 'close':
+            window.destroy()
+        else:
+            raise ValueError('未知窗口操作')
+
+    def desktop_info(self):
+        return {'frameless': platform.system() == 'Windows'}
+
     def open_external(self, url):
         """pywebview 里 window.open 打不开系统浏览器，用系统方式开外链。"""
         parsed = urllib.parse.urlsplit(str(url))
@@ -164,7 +182,8 @@ def main():
 
     window = webview.create_window(
         "捞鱼同步小助手", url, width=1180, height=780, min_size=(920, 620),
-        background_color="#F4F6FA", js_api=Bridge(mgr, args.upgrade_ack),
+        background_color="#EDF3F0", js_api=Bridge(mgr, args.upgrade_ack),
+        frameless=platform.system() == 'Windows', easy_drag=False,
     )
     activity.user("捞鱼同步小助手已启动")
     def loaded():

@@ -7,6 +7,14 @@
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
+<div id="windowBar" class="window-bar hidden">
+  <div class="window-brand pywebview-drag-region"><svg class="fish-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c7-10 17-10 21 0-4 10-14 10-21 0Z"/><path d="m5 16-4-6v12Z"/><circle cx="22" cy="14" r="1.3"/></svg><span>捞鱼同步小助手</span><span class="window-tag">让文件跟上你</span></div>
+  <div class="window-controls">
+    <button data-window-action="minimize" aria-label="最小化" title="最小化"><svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg></button>
+    <button data-window-action="maximize" aria-label="最大化或还原" title="最大化 / 还原"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9"/></svg></button>
+    <button data-window-action="close" aria-label="关闭" title="关闭"><svg viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></svg></button>
+  </div>
+</div>
 <div id="booterror" class="noauth hidden"></div>
 <script>
 window.addEventListener("error", function (e) {
@@ -24,8 +32,8 @@ window.addEventListener("error", function (e) {
 <div id="app" class="app hidden">
   <aside class="side">
     <div class="brand">
-      <div class="brand-logo">🐟</div>
-      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">文件自动同步，电脑轻松互联</div></div>
+      <div class="brand-logo"><svg class="fish-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c7-10 17-10 21 0-4 10-14 10-21 0Z"/><path d="m5 16-4-6v12Z"/><circle cx="22" cy="14" r="1.3"/></svg></div>
+      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">文件同步 · 连接沿用</div></div>
     </div>
     <nav>
       <a href="#/" data-page="dash" class="active">仪表盘</a>
@@ -35,7 +43,7 @@ window.addEventListener("error", function (e) {
       <a href="#/about" data-page="about">关于</a>
     </nav>
     <div class="side-foot">
-      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.0</span>
+      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.1</span>
     </div>
   </aside>
 
@@ -54,9 +62,15 @@ window.addEventListener("error", function (e) {
     <div id="updateProgress" class="banner hidden"><progress id="updateMeter" max="100" value="0"></progress><span id="updateMessage"></span><a href="#" data-external="https://github.com/lyzbcy/laoyu-sync/releases">手动下载</a></div>
     <!-- 仪表盘 -->
     <section id="page-dash" class="page">
+      <div class="page-heading"><div><span class="eyebrow">你的文件，随时就位</span><h1>同步概览</h1></div><span class="heading-note">连接继续，配置沿用</span></div>
+      <div id="connectionCard" class="connection-card">
+        <div class="connection-icon"><svg viewBox="0 0 24 24"><path d="M8 12h8M7 5v3m10-3v3M7 16v3m10-3v3"/><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/></svg></div>
+        <div class="connection-copy"><strong id="networkTitle">正在识别已有连接</strong><p id="networkDetail">有现成的网络和同步配置？小助手会自动沿用。</p><p id="engineAdoption" class="small mut"></p></div>
+        <span id="networkBadge" class="connection-badge">检测中</span>
+      </div>
       <div id="onboarding" class="card onboarding">
-        <h3>第一次使用？三步连起来</h3>
-        <p>① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a></p>
+        <h3 id="onboardingTitle">第一次使用？三步连起来</h3>
+        <p id="onboardingSteps">① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a></p>
         <p class="mut small">同步会把修改和删除传到其他设备，请先用测试文件夹体验。新项目默认保留远端覆盖/删除的旧文件 30 天；同步不能代替备份。对方离线时，本机已同步不代表对方已收到。</p>
         <button id="btnEngineStart" class="btn small">重试启动引擎</button>
       </div>
@@ -70,7 +84,7 @@ window.addEventListener("error", function (e) {
             <div class="ring-num"><div id="ringPct" class="big">…</div><div class="mut">本机同步进度</div></div>
           </div>
           <div class="hero-info">
-            <div id="heroState" class="hero-state">正在看一眼两台电脑的状态…</div>
+            <div id="heroState" class="hero-state">正在读取文件同步状态…</div>
             <div id="heroDetail" class="mut"></div>
             <div id="heroNext" class="hero-next"></div>
           </div>
@@ -94,6 +108,7 @@ window.addEventListener("error", function (e) {
 
     <!-- 设备与配对 -->
     <section id="page-devices" class="page hidden">
+      <div id="tailscalePeers" class="card hidden"></div>
       <div class="cards">
         <div class="card">
           <h3>本机的「电脑号码」</h3>

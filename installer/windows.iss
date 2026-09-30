@@ -1,4 +1,4 @@
-#define AppVersion "0.3.0"
+#define AppVersion "0.3.1"
 [Setup]
 AppId=studio.laoyu.sync
 AppName=捞鱼同步小助手

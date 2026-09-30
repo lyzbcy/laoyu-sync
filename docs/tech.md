@@ -9,3 +9,5 @@ Python标准库业务核心 + pywebview桌面窗口 + 原生HTML/JS/CSS。PyInst
 网关只监听回环，API校验令牌、Host和Origin，限制JSON大小和静态路径。浏览器桥只打开HTTP(S)，日志隐藏token/API key，不收集遥测和文件内容。小鱼读取同一网关，不独立把未知状态报成功。退出只停止自己启动的引擎，不停止已有独立引擎。
 
 更新与恢复见updater.md；安装与软件中心见packaging.md；隔离测试见testing.md。
+
+0.3.1：Windows窗口无系统标题栏，44px自绘拖动区与最小化/最大化还原/关闭按钮；浏览器与Mac保留平台合适入口。network.py只读Tailscale CLI，后台缓存10秒，不自动登录/退出/重配网络；网络在线与同步设备在线分开。启动优先识别默认或唯一自定义运行配置，多实例不随意接入其他home；只停止自己创建的引擎。

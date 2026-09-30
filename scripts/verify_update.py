@@ -10,6 +10,9 @@ import tempfile
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'core'))
+from version import __version__
 
 from verify_windows import windows_for
 
@@ -46,7 +49,7 @@ def scenario(bundle, fault=False):
     shutil.copytree(bundle, stage / 'helper')
     if fault:
         (stage / 'new/_internal/ui/app.js').write_text('throw new Error("isolated rollback fixture");', encoding='utf-8')
-    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':'0.3.0','data':str(data),'stage':str(stage)}
+    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':__version__,'data':str(data),'stage':str(stage)}
     (stage / 'transaction.json').write_text(json.dumps(payload), encoding='utf-8')
     helper = subprocess.Popen([str(stage / 'helper/LaoyuSync.exe'),'--apply-update',str(stage / 'transaction.json')], env=env, creationflags=0x08000000)
     windows = windows_for(old.pid)

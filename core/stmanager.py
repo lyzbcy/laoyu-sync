@@ -18,7 +18,40 @@ from pathlib import Path
 
 import activity
 import config
+from network import NetworkMonitor
 _owned_process = None
+_detected_home = None
+
+
+def running_config_home():
+    """Recognize custom --home/--config from a local engine, without touching it."""
+    try:
+        if platform.system() == 'Windows':
+            query = "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding; Get-CimInstance Win32_Process -Filter \"Name='syncthing.exe'\" | Select-Object -ExpandProperty CommandLine | ConvertTo-Json -Compress"
+            result = subprocess.run(['powershell.exe', '-NoProfile', '-Command', query],
+                                    capture_output=True, timeout=5, creationflags=0x08000000)
+            lines = json.loads(result.stdout.decode('utf-8-sig') or '[]')
+            if isinstance(lines, str):
+                lines = [lines]
+        else:
+            result = subprocess.run(['ps', '-axo', 'comm=,args='], capture_output=True, text=True, timeout=5)
+            lines = [line for line in result.stdout.splitlines() if 'syncthing' in line.split(' ', 1)[0]]
+        homes = []
+        default_running = False
+        for command in lines:
+            if not isinstance(command, str):
+                continue
+            match = re.search(r'(?:^|\s)"?--?(?:home|config)(?:=|\s+)(?:"([^"]+)"|([^\s"]+))"?', command)
+            if match:
+                home = Path(match.group(1) or match.group(2)).expanduser()
+                if home.is_absolute() and (home / 'config.xml').is_file() and home not in homes:
+                    homes.append(home)
+            else:
+                default_running = True
+        # Multiple independent engines are ambiguous; retain the default instead.
+        return homes[0] if len(homes) == 1 and not default_running else None
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
 
 def stop_owned():
     """Only shut down the engine spawned by this app, never an adopted engine."""
@@ -34,15 +67,23 @@ def stop_owned():
     _owned_process = None
 
 def engine_home():
+    global _detected_home
     if os.environ.get('LAOYU_ST_HOME'):
         return Path(os.environ['LAOYU_ST_HOME']).resolve()
+    if _detected_home is not None:
+        return _detected_home
+    running = running_config_home()
+    if running:
+        _detected_home = running
+        return running
     if platform.system() == 'Windows':
         candidates = [Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Syncthing', Path(os.environ.get('APPDATA', Path.home())) / 'Syncthing']
     elif platform.system() == 'Darwin':
         candidates = [Path.home() / 'Library/Application Support/Syncthing', Path.home() / '.config/syncthing']
     else:
         candidates = [Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'syncthing', Path.home() / '.config/syncthing']
-    return next((home for home in candidates if (home / 'config.xml').is_file()), candidates[0])
+    _detected_home = next((home for home in candidates if (home / 'config.xml').is_file()), candidates[0])
+    return _detected_home
 
 DEVICE_ID_RE = re.compile(r"^([A-Z2-7]{7}-){7}[A-Z2-7]{7}$")
 
@@ -199,6 +240,8 @@ class STClient:
 class STManager:
     def __init__(self):
         self.client = STClient()
+        self.network = NetworkMonitor()
+        self._existing_config = (engine_home() / 'config.xml').is_file()
         self._ensure_lock = threading.Lock()
         self._speed_lock = threading.Lock()
         self._last_total = None  # (ts, inBytes, outBytes)
@@ -242,6 +285,8 @@ class STManager:
             "folders": [], "devices": [],
             "total": {"pct": 0.0, "needBytes": 0, "needFiles": 0, "speed": 0.0, "complete": False},
         }
+        snap['network'] = self.network.status() if hasattr(self, 'network') else {'state': 'checking', 'peers': []}
+        snap['syncthing']['source'] = 'existing' if getattr(self, '_existing_config', False) else 'managed'
         self.client.base, self.client.key = read_gui_config()
         if not self.client.ready():
             snap["syncthing"].update({"running": False, "note": "未找到 Syncthing 配置"})
