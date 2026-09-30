@@ -26,8 +26,10 @@ class Child:
     def terminate(self): self.alive=False
     def wait(self,timeout): return 1
 
+@unittest.skipUnless(sys.platform == 'win32', 'Windows update helper; Mac uses manual packages')
 class Transactions(unittest.TestCase):
     def fixture(self,root):
+        root = Path(root).resolve()
         target=root/'app';target.mkdir();(target/'LaoyuSync.exe').write_bytes(b'old')
         (target/'unins000.exe').write_bytes(b'installer')
         stage=root/'.laoyu-update-fixture';stage.mkdir();new=stage/'new';new.mkdir();(new/'LaoyuSync.exe').write_bytes(b'new')
