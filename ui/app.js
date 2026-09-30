@@ -259,7 +259,7 @@ function stateOf(s) {
   if (!s.syncthing.api_ok)
     return { key: "grey", text: "小助手正在热身，几秒后自动开始", color: "var(--grey)" };
   const fs = s.folders || [];
-  if (!fs.length) return {key: "grey", text: "还没有同步项目，跟着下面三步开始", color: "var(--grey)"};
+  if (!fs.length) return {key: "grey", text: "还没有同步项目，选择文件夹开始", color: "var(--grey)"};
   if (fs.some(f => f.state === "unavailable")) return {key: "red", text: "部分项目状态暂时无法读取", color: "var(--red)"};
   if (fs.some(f => f.paused)) return {key: "orange", text: "有项目已暂停", color: "var(--orange)"};
   const badFolders = fs.filter((f) => f.state === "error");
