@@ -2,7 +2,7 @@
 
 用户明确授权公开发布、同步帮助站与上架软件中心。Windows0.3.1已公开：[发布页](https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.1)。安装版/ZIP/checksums的GitHub资产digest与固定CI文件逐字节SHA-256一致；两个公网下载URL HEAD200且长度一致，证据verification/public-release.json与public-downloads.json。根version.json同步正式0.3.1清单。Mac不作为正式资产。
 
-软件中心0.7.4打包版31核心测试及正常/小窗口冒烟通过，二进制已公开于lyzbcy/laoyu-software-center-downloads，源码仍私有。工作室服务器镜像及更新清单需要独立SSH发布权限；不宣称已经切换。帮助站原地址已更新至v1.15.0，公网HTML SHA-256与发布文件完全一致（c1a9f3ee095ba8d77e892cbd8a2a80c170f2e646ce0d1c3b0dbc583de6430524），证据verification/published-help-page.json。同步助手详情：https://help.wshoto.com/resource/5ea68b60e5b24df78ddce46cf1614671/27da304c.html#project/laoyu-sync。
+软件中心0.7.4打包版31核心测试及正常/小窗口冒烟通过，二进制已公开于lyzbcy/laoyu-software-center-downloads，源码仍私有。工作室服务器镜像及更新清单需要独立SSH发布权限；不宣称已经切换。帮助站原地址已更新至v1.15.0，公网HTML SHA-256与发布文件完全一致（c1a9f3ee095ba8d77e892cbd8a2a80c170f2e646ce0d1c3b0dbc583de6430524），证据verification/published-help-page.json。同步助手详情：https://help.wshoto.com/resource/5ea68b60e5b24df78ddce46cf1614671/27da304c.html#project/laoyu-sync。独立线上回归通过：1366×900与390×844首页/详情/下载6状态无横向溢出，17旧路由及全部旧链接保留，见verification/publish-web-regression.md。
 
 # 0.3.1 窗口与已有网络接入交付
 
