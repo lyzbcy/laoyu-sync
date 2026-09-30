@@ -1,3 +1,12 @@
 @echo off
-rem SyncSprite launcher - start core service and open the management window
-start "" "%LOCALAPPDATA%\Programs\Python\Python312\pythonw.exe" "C:\Users\Administrator\.zcode\workspace\default\syncsprite\core\app.py"
+cd /d "%~dp0"
+if exist "LaoyuSync.exe" (
+    start "" "%~dp0LaoyuSync.exe"
+    exit /b
+)
+if exist "dist\LaoyuSync\LaoyuSync.exe" (
+    start "" "%~dp0dist\LaoyuSync\LaoyuSync.exe"
+    exit /b
+)
+python core\app.py
+if errorlevel 1 pause

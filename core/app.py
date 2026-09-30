@@ -16,6 +16,9 @@ import sys
 import threading
 import time
 import webbrowser
+import json
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -24,7 +27,8 @@ import activity  # noqa: E402
 import config  # noqa: E402
 import gateway  # noqa: E402
 import version  # noqa: E402
-from stmanager import STManager  # noqa: E402
+import updater
+from stmanager import STManager, stop_owned  # noqa: E402
 
 
 def background_init(mgr):
@@ -45,6 +49,9 @@ class Bridge:
 
     def open_external(self, url):
         """pywebview 里 window.open 打不开系统浏览器，用系统方式开外链。"""
+        parsed = urllib.parse.urlsplit(str(url))
+        if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username or parsed.password:
+            raise ValueError('只能打开有效的网页链接')
         if platform.system() == "Windows":
             os.startfile(url)  # noqa: S606
         elif platform.system() == "Darwin":
@@ -57,23 +64,74 @@ class Bridge:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--console", action="store_true", help="日志同时输出到控制台")
+    parser.add_argument('--headless', action='store_true')
+    parser.add_argument('--pet', action='store_true')
+    parser.add_argument('--apply-update')
+    parser.add_argument('--upgrade-ack')
     args = parser.parse_args()
+    if args.apply_update:
+        updater.apply_update(args.apply_update)
+        return
+    if args.pet:
+        from pet import run
+        run()
+        return
     if args.console:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
     cfg = config.load()
-    port = int(cfg["port"])
+    if platform.system() == 'Windows':
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('studio.laoyu.sync')
+    port = int(os.environ.get('LAOYU_SYNC_PORT', cfg['port']))
     url = f"http://127.0.0.1:{port}/?t={cfg['token']}"
 
     mgr = STManager()
     try:
         server = gateway.start(mgr, port)
     except OSError:
-        activity.user("捞鱼同步小助手已经在运行了，正在打开已有窗口…")
-        webbrowser.open(url)
-        sys.exit(0)
-    activity.dev("gateway serving at %s", url)
+        try:
+            req = urllib.request.Request(f'http://127.0.0.1:{port}/api/meta', headers={'X-Token': cfg['token']})
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                existing = json.load(resp)
+            if existing.get('product') != '捞鱼同步小助手':
+                raise RuntimeError('端口被其他软件占用')
+            if not args.headless:
+                webbrowser.open(url)
+            return
+        except Exception as exc:
+            activity.error('cannot start gateway: %s', exc)
+            if platform.system() == 'Windows' and not args.headless:
+                import ctypes
+                ctypes.windll.user32.MessageBoxW(0, '本机端口被占用，请关闭已有程序或更改配置端口。', '捞鱼同步小助手', 0x10)
+            raise RuntimeError('本机服务端口被占用') from exc
+    activity.dev("gateway serving on loopback port %s", port)
+    config.set('launch_count', int(config.get('launch_count') or 0) + 1)
+    if not config.get('first_used'):
+        config.set('first_used', time.time())
     background_init(mgr)
+
+    pet_process = None
+    def toggle_pet(enabled):
+        nonlocal pet_process
+        if enabled and platform.system() == 'Windows' and not args.headless:
+            if pet_process is None or pet_process.poll() is not None:
+                cmd = [sys.executable, '--pet'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--pet']
+                env = dict(os.environ, LAOYU_SYNC_PORT=str(port))
+                pet_process = subprocess.Popen(cmd, env=env, creationflags=0x08000000)
+        elif pet_process and pet_process.poll() is None:
+            pet_process.terminate()
+            pet_process.wait(timeout=5)
+            pet_process = None
+    gateway.PET_CALLBACK = toggle_pet
+    if args.headless:
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            server.shutdown()
+            stop_owned()
+        return
 
     try:
         import webview
@@ -88,12 +146,23 @@ def main():
             pass
         return
 
-    webview.create_window(
+    window = webview.create_window(
         "捞鱼同步小助手", url, width=1180, height=780, min_size=(920, 620),
         background_color="#F4F6FA", js_api=Bridge(),
     )
     activity.user("捞鱼同步小助手已启动")
-    webview.start()
+    def loaded():
+        if args.upgrade_ack:
+            Path(args.upgrade_ack).write_text(json.dumps({'version': version.__version__}), encoding='utf-8')
+        toggle_pet(config.get('pet_enabled'))
+    window.events.loaded += loaded
+    updater.EXIT_CALLBACK = window.destroy
+    try:
+        webview.start()
+    finally:
+        toggle_pet(False)
+        server.shutdown()
+        stop_owned()
 
 
 if __name__ == "__main__":

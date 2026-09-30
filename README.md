@@ -1,26 +1,39 @@
 # 捞鱼同步小助手 Laoyu Sync
 
-给 [Syncthing](https://syncthing.net) 做的中文友好套壳：本地核心服务 + 网页管理界面，
-让“添加设备、共享文件夹”不再折磨人。桌面小精灵（../syncthing-pet）是它的第一个插件。
+中文引导电脑文件同步：配对、项目共享、实时状态，还有会摆尾吐泡的桌面小鱼。文件由 Syncthing 在设备之间传输，不上传作者服务器，无遥测。
 
-## 快速开始
+## 使用
 
-双击 `启动捞鱼同步小助手.bat`（需要已安装 Syncthing 和 Python 3.12+）。
+Windows 完整包内置 Python 与 Syncthing，无需另外安装。下载入口 https://github.com/lyzbcy/laoyu-sync/releases 。正式发布与验收状态以 docs/roadmap.md 为准，源码推送不代表包已公开。
 
-- 首次运行会自动拉起 Syncthing 引擎（没有就提示安装）
-- 管理界面：`http://127.0.0.1:8384` 是原生高级设置，`http://127.0.0.1:8390` 是捞鱼同步小助手
+1. 两台电脑安装并打开助手；便携 ZIP 完整解压后打开 LaoyuSync.exe。
+2. 在「设备与配对」交换电脑号码，互相添加并接受。
+3. 在「同步项目」选择文件夹，共享给对方；对方选择保存位置接收。
 
-## 添加一台设备，只要三步
+先用测试文件夹体验。修改和删除会同步，新项目默认保留远端覆盖/删除的旧文件 30 天（.stversions）；同步不能代替备份。本机已同步不代表离线设备已收到。
 
-1. 「设备与配对」页复制本机设备 ID（或让对方扫二维码）
-2. 把对方 ID 粘进“添加设备”，勾选要共享的文件夹
-3. 对方点一下接受，开始同步
+项目可调整共享、暂停/继续、停止同步并保留文件。关于页开关桌面小鱼、复制诊断日志、检查更新。退出助手会停止自己启动的引擎，已有独立引擎不被停止。
 
-## 目录与开发
+配置和日志存于用户数据目录 LaoyuSync；引擎已有配置兼容。日志可能含路径和设备名，分享前检查。反馈服务未配置时仅复制内容，不伪造送达。
 
-接手开发先读 [SKILL.md](SKILL.md) 和 [docs/agent.md](docs/agent.md)。
-调试：`python core/app.py --console`。
+## 开发
 
-## License
+先读 SKILL.md → docs/agent.md。Python 3.12：
 
-MIT（本壳）。Syncthing 为 MPL-2.0，归其作者所有。
+```powershell
+python -m pip install -r requirements.txt
+python -m unittest discover -s tests -v
+python scripts/fetch_engine.py
+python scripts/make_icon.py
+python core/app.py --console
+python -m PyInstaller --noconfirm LaoyuSync.spec
+python scripts/package.py
+```
+
+Inno Setup 6 的 ISCC 编译 installer/windows.iss；Actions 构建 Windows 和 Mac 独立包。Mac 包未签名公证，CI 构建不代替实机验收。Windows 当前无代码签名。
+
+隔离参数 LAOYU_SYNC_DATA、LAOYU_SYNC_PORT、LAOYU_ST_HOME、LAOYU_ST_GUI；--headless 启动 API。禁止在真实用户同步目录做回归。
+
+## 许可
+
+外壳 MIT，Syncthing MPL-2.0 独立进程，原始许可证与源码地址随包提供。见 THIRD_PARTY_NOTICES.md。原创表情素材归原作者所有。

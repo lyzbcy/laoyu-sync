@@ -4,6 +4,11 @@
 静态页面不带鉴权（无敏感数据），API 全部带。
 """
 import io
+import hmac
+import os
+import re
+import threading
+import time
 import json
 import urllib.parse
 import urllib.request
@@ -13,6 +18,7 @@ import activity
 import config
 import version
 import wizard
+import updater
 from wizard import WizardError
 
 MIME = {
@@ -23,6 +29,7 @@ MIME = {
 
 # pywebview 窗口就绪后由 app.py 置 True，前端据此显示“浏览…”按钮
 PICKER_AVAILABLE = False
+PET_CALLBACK = None
 
 
 def make_handler(mgr):
@@ -30,7 +37,8 @@ def make_handler(mgr):
         server_version = "SyncSprite/" + version.__version__
 
         def log_message(self, fmt, *args):  # 访问日志进开发日志（日志系统规范）
-            activity.dev("http %s %s", self.address_string(), fmt % args)
+            text = re.sub(r'([?&](?:t|token)=)[^&\s"]+', r'\1[hidden]', fmt % args)
+            activity.dev("http %s %s", self.address_string(), text)
 
         # ---------- 工具
 
@@ -47,14 +55,22 @@ def make_handler(mgr):
             self._json({"ok": False, "error": msg}, code)
 
         def _authorized(self):
-            return self.headers.get("X-Token") == config.get("token")
+            host = self.headers.get('Host', '')
+            origin = self.headers.get('Origin')
+            expected = '127.0.0.1:' + str(self.server.server_port)
+            return host == expected and (not origin or origin == 'http://' + expected) and hmac.compare_digest(self.headers.get('X-Token', ''), config.get('token'))
 
         def _body(self):
             try:
                 length = int(self.headers.get("Content-Length", 0))
-                return json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
-            except Exception:
-                return {}
+                if length < 0 or length > 65536:
+                    raise WizardError('请求内容过大')
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+                if not isinstance(body, dict):
+                    raise WizardError('请求格式不正确')
+                return body
+            except (ValueError, UnicodeError):
+                raise WizardError('请求不是有效 JSON')
 
         # ---------- 路由
 
@@ -66,7 +82,7 @@ def make_handler(mgr):
                 if path.startswith("/api/"):
                     # <img>/<a> 标签发不了自定义头，允许 ?token= 兜底
                     qs_token = qs.get("token", [""])[0]
-                    if not self._authorized() and qs_token != config.get("token"):
+                    if not self._authorized() and not (path == '/api/qr' and self.headers.get('Host') == '127.0.0.1:' + str(self.server.server_port) and hmac.compare_digest(qs_token, config.get('token'))):
                         return self._err("本机令牌校验失败，请从启动器进入管理界面", 401)
                     self.route_api(path, qs)
                 else:
@@ -80,11 +96,31 @@ def make_handler(mgr):
                 self._err(f"服务内部错误：{exc}", 500)
 
         def do_POST(self):
+            # Serialize configuration mutations; Syncthing remains the source of truth.
+            with wizard.MUTATION_LOCK:
+                self._post()
+
+        def _post(self):
             path = urllib.parse.urlparse(self.path).path
             try:
                 if not self._authorized():
                     return self._err("本机令牌校验失败，请从启动器进入管理界面", 401)
                 body = self._body()
+                if path == '/api/folder/update':
+                    return self._json(wizard.update_folder_flow(mgr, body.get('folder_id'), body.get('devices'), body.get('paused')))
+                if path == '/api/engine/start':
+                    threading.Thread(target=mgr.ensure_running, daemon=True).start()
+                    return self._json({'ok': True})
+                if path == '/api/update/start':
+                    return self._json(updater.start())
+                if path == '/api/settings':
+                    if 'pet_enabled' in body:
+                        config.set('pet_enabled', bool(body['pet_enabled']))
+                        if PET_CALLBACK:
+                            PET_CALLBACK(bool(body['pet_enabled']))
+                    if body.get('dismiss_review'):
+                        config.set('review_dismissed_at', time.time())
+                    return self._json({'ok': True})
                 if path == "/api/device/add":
                     result = wizard.add_device_flow(
                         mgr, body.get("device_id", ""), body.get("name", ""),
@@ -112,7 +148,7 @@ def make_handler(mgr):
                 if path == "/api/feedback":
                     return self.route_feedback(body)
                 return self._err("未知接口", 404)
-            except WizardError as exc:
+            except (WizardError, ValueError) as exc:
                 self._err(str(exc))
             except Exception as exc:
                 activity.error("POST %s failed: %s", path, exc)
@@ -121,6 +157,15 @@ def make_handler(mgr):
         # ---------- API 实现
 
         def route_api(self, path, qs):
+            if path == '/api/update/status':
+                return self._json(updater.status())
+            if path == '/api/diagnostics':
+                logpath = config.LOG_DIR / 'syncsprite.log'
+                text = logpath.read_text(encoding='utf-8', errors='replace')[-32000:] if logpath.exists() else ''
+                text = text.replace(config.get('token'), '[hidden]')
+                if mgr.client.key:
+                    text = text.replace(mgr.client.key, '[hidden]')
+                return self._json({'text': 'Laoyu Sync ' + version.__version__ + '\n' + text})
             if path == "/api/status":
                 return self._json(mgr.status())
             if path == "/api/events":
@@ -143,6 +188,10 @@ def make_handler(mgr):
                     "product": "捞鱼同步小助手",
                     "has_window_picker": PICKER_AVAILABLE,
                     "feedback_url_configured": bool(config.get("feedback_url")),
+                    "pet_enabled": bool(config.get('pet_enabled')),
+                    "platform": __import__('platform').system(),
+                    "engine_url": mgr.client.base,
+                    "review_due": config.get('launch_count') >= 5 and time.time() - float(config.get('first_used') or time.time()) > 7 * 86400 and time.time() - float(config.get('review_dismissed_at') or 0) > 15 * 86400,
                 })
             if path == "/api/qr":
                 text = qs.get("text", [""])[0]
@@ -191,14 +240,16 @@ def make_handler(mgr):
                 path = "/index.html"
             rel = path.lstrip("/")
             target = (config.UI_DIR / rel).resolve()
-            if not str(target).startswith(str(config.UI_DIR.resolve())) or not target.is_file():
+            if not target.is_relative_to(config.UI_DIR.resolve()) or not target.is_file():
                 return self._err("页面不存在", 404)
             body = target.read_bytes()
             ext = target.suffix.lower()
             self.send_response(200)
             self.send_header("Content-Type", MIME.get(ext, "application/octet-stream"))
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header('Referrer-Policy', 'no-referrer')
+            self.send_header('X-Content-Type-Options', 'nosniff')
             self.end_headers()
             self.wfile.write(body)
 

@@ -16,9 +16,10 @@ import urllib.request
 import activity
 import config
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 CHANGELOG = [
+    {"ver": "0.3.0", "date": "2026-09-30", "items": ["内置同步引擎，Windows 安装与便携包", "首次使用引导、可靠状态、共享设置和暂停", "桌面小鱼统一管理、诊断日志复制", "每日版本检查、校验下载、升级重启与失败恢复"]},
     {
         "ver": "0.2.0",
         "date": "2026-09-07",
@@ -45,14 +46,12 @@ CHANGELOG = [
 
 
 def semver_tuple(v):
-    try:
-        return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
-    except Exception:
-        return (0, 0, 0)
+    match = re.fullmatch(r'v?(\d+)\.(\d+)\.(\d+)', str(v))
+    return tuple(map(int, match.groups())) if match else (0, 0, 0)
 
 
 def _today():
-    return datetime.date.today().isoformat()
+    return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
 
 
 def check(force=False):
@@ -61,9 +60,13 @@ def check(force=False):
     if not url:
         return {"enabled": False, "note": "更新源未配置（等 GitHub 仓库建立后在 core/config.json 填 update_manifest_url）"}
     today = _today()
-    if not force and config.get("last_update_check") == today:
+    if not force and config.get("last_update_attempt") == today:
         return _cached()
+    config.set('last_update_attempt', today)
     try:
+        from updater import trusted_url
+        if not trusted_url(url, manifest=True):
+            raise ValueError('更新源不在可信仓库范围内')
         req = urllib.request.Request(url, headers={"User-Agent": "SyncSprite/" + __version__})
         with urllib.request.urlopen(req, timeout=8) as resp:
             manifest = json.loads(resp.read().decode("utf-8"))
@@ -74,6 +77,8 @@ def check(force=False):
             "notes": str(manifest.get("notes", "")),
             "download_url": str(manifest.get("download_url", "")),
             "has_update": semver_tuple(str(manifest.get("version", ""))) > semver_tuple(__version__),
+            "sha256": str(manifest.get('sha256', '')),
+            "error": "",
         }
         if result["has_update"]:
             activity.user(f"发现新版本 v{result['remote_version']}，可前往“关于”页更新")
@@ -82,19 +87,22 @@ def check(force=False):
     except Exception as exc:
         # 规范要求：更新检查失败静默用旧版，不打断本次使用
         activity.error("update check failed: %s", exc)
-        return _cached()
+        cached = _cached()
+        cached['error'] = '检查失败，请检查网络或代理后重试'
+        config.set('_update_cache', cached)
+        return cached
 
 
 def _cached():
     cached = config.get("_update_cache") or {}
-    return {
+    return dict(cached, **{
         "enabled": True,
         "remote_version": cached.get("remote_version", ""),
         "notes": cached.get("notes", ""),
         "download_url": cached.get("download_url", ""),
-        "has_update": bool(cached.get("has_update")),
-    }
+        "has_update": semver_tuple(cached.get('remote_version', '')) > semver_tuple(__version__),
+    })
 
 
 def local_info():
-    return {"version": __version__, "changelog": CHANGELOG, "update": check()}
+    return {"version": __version__, "changelog": CHANGELOG, "update": _cached()}

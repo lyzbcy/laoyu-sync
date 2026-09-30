@@ -200,7 +200,8 @@ nav a.active {
 
 /* ================= 同步项目卡片 ================= */
 .folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-.folder-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.folder-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; min-width: 0; }
+.folder-head .btn { white-space: nowrap; flex-shrink: 0; }
 .folder-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 徽章：JS 写入的内联 style="background:状态色" 是 shorthand，
    会在内联层把 background-image 重置为 none，所以白纱必须 !important

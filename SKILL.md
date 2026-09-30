@@ -1,22 +1,39 @@
-# 捞鱼同步小助手 Laoyu Sync — 开发 Skill
+---
+name: laoyu-sync-dev
+description: 开发维护捞鱼同步小助手。先读开发导航，按模块渐进阅读，保护用户真实同步配置。
+---
 
-一套给 Syncthing 做的中文友好套壳：本地核心服务（网关）+ 网页管理界面 + 桌面小精灵插件。
+# 捞鱼同步小助手开发 Skill
 
-## 任何 Agent 接手本项目的必读路径（渐进式披露）
+## 项目与技术栈
 
-1. 先读 `docs/agent.md` —— 架构总览、目录导读、当前开发情况。
-2. 再读 `docs/todo.md` —— 现在的 To-do 和里程碑。
-3. 要开发某一块组件时，去 `docs/reference/` 找对应文件精读，不要一上来扫全仓库：
-   - `core-api.md` 本地网关 API 一览（前后端联调必读）
-   - `syncthing-api.md` 我们依赖的 Syncthing 官方 REST 端点笔记
-   - `conventions.md` 用户《软件开发》规范 → 本项目的落地映射（日志/更新/推广/测试等约定）
-   - `packaging.md` 打包发布（Mac + Windows 双端，规划中）
-4. 代码入口：`core/app.py`（进程入口）→ `core/gateway.py`（本地 HTTP 网关）→ `core/stmanager.py`（Syncthing 管理与状态聚合）→ `core/wizard.py`（添加设备/文件夹业务）→ `ui/`（前端）。
+面向普通用户的文件同步助手。Python 3.12 标准库 + pywebview/qrcode，原生 HTML/JS/CSS；PyInstaller 完整包、Inno Setup，每个平台独立 Syncthing 进程。小鱼是 Windows 插件。
 
-## 铁律
+## 地图
 
-1. **每次开发完成必须更新版本号**：改 `core/version.py` 的 `__version__` 与 `CHANGELOG`，并同步到 `docs/todo.md` 的开发记录。本项目将实现自适应更新检测，版本号不同步会导致更新机制失效。
-2. 配置永远以 Syncthing 自身的 `config.xml` / REST 为唯一事实来源，本软件只做客户端，不另存一份同步配置。
-3. 后端只用 Python 标准库 + `qrcode`（二维码）+ `pywebview`（窗口壳）；前端纯 HTML/JS/CSS，不引入构建链。换 Tauri/Electron 壳时前端必须可以原样搬走。
-4. 所有面向用户的文案用中文；表情优先用 `ui/assets/stickers/` 里的原创表情包（星星布丁）。
-5. 运行期日志在 `logs/`，不要提交；用户可见的活动提示走 `activity.py` 的事件流，不要直接 print。
+- core/：app入口、gateway鉴权、stmanager快照、wizard配对/共享、pet小鱼、updater校验升级、activity双通道日志。
+- ui/：中文界面与原创表情，无构建链。
+- docs/：唯一导航 docs/agent.md，开发任何功能前先读对应模块。
+- assets/图标；scripts/官方引擎校验/构建；installer/安装器；tests/安全回归。
+- verification/、dist/、engine/：本机验收、构建与上游引擎，不入库。
+
+## 约定
+
+先读 docs/roadmap.md 和模块文档。小写英文文件名；稳定产品 ID laoyu-sync，主程序 LaoyuSync.exe。小改沿用main，大改feature/<主题>；提交说明结果与验证。长操作 activity.user 事件流，开发日志轮转到用户数据目录；禁止记录令牌、密钥、文件内容。
+
+版本源 core/version.py 的 __version__/CHANGELOG，当前 0.3.0。每次交付同步代码、文档、版本并推送既定远端，不改变可见性。安装器/界面/Mac元数据同步。scripts/package.py 生成真实哈希；根 version.json 是正式更新元数据，包公开并校验后才更新，不以源码版本冒充已发布版本。同版本公开包不可覆盖。
+
+## 能力与验收入口
+
+- 日志已实现轮转、事件流、脱敏复制；更新已实现每日UTC+8尝试/成功、手动重试、正式版本比较、可信地址与哈希、进度、重启与恢复，真实验收见 roadmap/updater。
+- Windows 完整引擎/小鱼；python -m unittest discover -s tests -v。包运行、更新、安装分别留证，不能只看构建成功。
+- Mac独立CI包；签名公证和实机验收待完成，一键目录替换不开放。
+- 启动器适配先读 E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md；launcher-adapter.json + 严格自查，目录登记、客户端发布和真实安装识别分开记录。
+- 独立 Kimi 网页回归与报告在 verification/。
+- 求Star达到使用天数/次数门槛后提示，关闭15天不打扰。反馈服务无可信配置时复制，不宣称发送。
+
+## 红线
+
+不得修改真实 E:/共享 同步项目、用户文件、设备身份；测试用 LAOYU_* 隔离。同步配置唯一来源是Syncthing。后端保持标准库+qrcode/pywebview；前端不增加构建链。更新器变更必须记录原因与负例及真实升级/回滚；源码环境不覆盖代码。升级保留用户数据和卸载入口。
+
+Skill自身维护：每日首次接手检查远端版本，干净工作区可fast-forward；网络失败用旧版，有本地改动不自动覆盖。程序运行不下载执行远端Skill。

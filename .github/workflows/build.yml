@@ -1,0 +1,54 @@
+name: Build desktop packages
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '*.md', 'launcher-adapter.json', 'version.json']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: python scripts/fetch_engine.py
+      - run: python scripts/make_icon.py
+      - run: python -m PyInstaller --noconfirm LaoyuSync.spec
+      - run: python scripts/package.py
+      - name: Build installer
+        shell: pwsh
+        run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer/windows.iss'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laoyu-sync-windows
+          path: |
+            dist/*.zip
+            dist/*setup.exe
+            dist/version.json
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -v
+      - run: |
+          if [ "$(uname -m)" = "arm64" ]; then
+            python scripts/fetch_engine.py --platform macos-arm64
+          else
+            python scripts/fetch_engine.py --platform macos-amd64
+          fi
+      - run: python scripts/make_icon.py
+      - run: python -m PyInstaller --noconfirm LaoyuSync.spec
+      - run: ditto -c -k --sequesterRsrc --keepParent dist/LaoyuSync.app "dist/laoyu-sync-0.3.0-macos-$(uname -m).zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laoyu-sync-macos-unsigned
+          path: dist/*macos*.zip

@@ -17,6 +17,32 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import activity
+import config
+_owned_process = None
+
+def stop_owned():
+    """Only shut down the engine spawned by this app, never an adopted engine."""
+    global _owned_process
+    child = _owned_process
+    if child and child.poll() is None:
+        try:
+            STClient().post('/rest/system/shutdown')
+            child.wait(timeout=10)
+        except Exception:
+            child.terminate()
+            child.wait(timeout=10)
+    _owned_process = None
+
+def engine_home():
+    if os.environ.get('LAOYU_ST_HOME'):
+        return Path(os.environ['LAOYU_ST_HOME']).resolve()
+    if platform.system() == 'Windows':
+        candidates = [Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'Syncthing', Path(os.environ.get('APPDATA', Path.home())) / 'Syncthing']
+    elif platform.system() == 'Darwin':
+        candidates = [Path.home() / 'Library/Application Support/Syncthing', Path.home() / '.config/syncthing']
+    else:
+        candidates = [Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'syncthing', Path.home() / '.config/syncthing']
+    return next((home for home in candidates if (home / 'config.xml').is_file()), candidates[0])
 
 DEVICE_ID_RE = re.compile(r"^([A-Z2-7]{7}-){7}[A-Z2-7]{7}$")
 
@@ -37,7 +63,8 @@ _SYNCTHING_EXE_CANDIDATES = {
 
 def read_gui_config():
     """从 Syncthing 自身配置读 GUI 地址与 API key，返回 (base_url, api_key)。"""
-    candidates = [
+    candidates = [engine_home() / 'config.xml'] if os.environ.get('LAOYU_ST_HOME') else [
+        engine_home() / 'config.xml',
         Path(os.environ.get("LOCALAPPDATA", "")) / "Syncthing" / "config.xml",
         Path.home() / ".config" / "syncthing" / "config.xml",
     ]
@@ -46,6 +73,9 @@ def read_gui_config():
             root = ET.parse(str(cfg)).getroot()
             gui = root.find("gui")
             addr = gui.findtext("address").strip()
+            host, sep, port = addr.rpartition(':')
+            if host in ('0.0.0.0', '[::]', ''):
+                addr = '127.0.0.1:' + port
             key = gui.findtext("apikey").strip()
             scheme = "https" if gui.get("tls") == "true" else "http"
             return f"{scheme}://{addr}", key
@@ -64,6 +94,9 @@ def normalize_device_id(raw):
 
 
 def find_syncthing_exe():
+    bundled = config.ROOT / 'engine' / ('syncthing.exe' if platform.system() == 'Windows' else 'syncthing')
+    if bundled.is_file():
+        return str(bundled)
     for p in _SYNCTHING_EXE_CANDIDATES.get(platform.system(), []):
         if os.path.isfile(p):
             return p
@@ -88,6 +121,7 @@ def process_running():
 
 
 def launch():
+    global _owned_process
     exe = find_syncthing_exe()
     if not exe:
         activity.user("没找到 syncthing 引擎程序，请先安装 Syncthing", "error")
@@ -95,13 +129,15 @@ def launch():
     kwargs = {}
     if platform.system() == "Windows":
         kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
-    logfile = Path(os.environ.get("LOCALAPPDATA", "logs")) / (
-        "Syncthing/syncthing.log" if platform.system() == "Windows" else "syncthing.log"
-    )
+    logfile = config.LOG_DIR / 'syncthing.log'
     logfile.parent.mkdir(parents=True, exist_ok=True)
     try:
-        subprocess.Popen(
-            [exe, "serve", "--no-browser", f"--logfile={logfile}"], **kwargs
+        engine_home().mkdir(parents=True, exist_ok=True)
+        command = [exe, "serve", "--no-browser", f"--home={engine_home()}", f"--logfile={logfile}"]
+        if os.environ.get('LAOYU_ST_GUI'):
+            command.append('--gui-address=' + os.environ['LAOYU_ST_GUI'])
+        _owned_process = subprocess.Popen(
+            command, **kwargs
         )
         return True
     except Exception as exc:
@@ -153,6 +189,7 @@ class STClient:
 
     def api_ok(self, timeout=3):
         try:
+            self.base, self.key = read_gui_config()
             self.get("/rest/system/status", timeout=timeout)
             return True
         except Exception:
@@ -172,7 +209,7 @@ class STManager:
         """确保 Syncthing 在跑且 API 就绪；返回是否就绪。"""
         if self.client.api_ok():
             return True
-        if not process_running():
+        if os.environ.get('LAOYU_ST_HOME') or not process_running():
             activity.user("同步引擎（Syncthing）没有运行，正在自动启动…")
             if not launch():
                 return False
@@ -194,8 +231,9 @@ class STManager:
             "syncthing": {"running": True, "api_ok": False,
                           "version": "", "uptime": 0},
             "folders": [], "devices": [],
-            "total": {"pct": 100.0, "needBytes": 0, "needFiles": 0, "speed": 0.0},
+            "total": {"pct": 0.0, "needBytes": 0, "needFiles": 0, "speed": 0.0, "complete": False},
         }
+        self.client.base, self.client.key = read_gui_config()
         if not self.client.ready():
             snap["syncthing"].update({"running": False, "note": "未找到 Syncthing 配置"})
             return snap
@@ -225,7 +263,7 @@ class STManager:
                     s = self.client.get(
                         "/rest/db/status?folder=" + urllib.parse.quote(fid))
                 except Exception:
-                    s = {}
+                    s = {'state': 'unavailable'}
                 g, i = s.get("globalBytes", 0), s.get("inSyncBytes", 0)
                 total_g += g
                 total_i += i
@@ -239,7 +277,9 @@ class STManager:
                     "needFiles": s.get("needFiles", 0),
                     "pullErrors": s.get("pullErrors", 0),
                     "errors": s.get("errors", 0),
-                    "pct": round(i / g * 100.0, 2) if g else 100.0,
+                    "paused": bool(f.get('paused')),
+                    "deviceIDs": [d.get('deviceID') for d in f.get('devices', []) if d.get('deviceID') != my_id],
+                    "pct": max(0, min(100, round(i / g * 100.0, 2))) if g else (100.0 if s.get('state') == 'idle' else 0.0),
                 })
             for d in cfg.get("devices", []):
                 did = d.get("deviceID", "")
@@ -253,13 +293,15 @@ class STManager:
                     "autoAccept": bool(d.get("autoAcceptFolders")),
                 })
             snap["total"] = {
-                "pct": round(total_i / total_g * 100.0, 2) if total_g else 100.0,
+                "pct": max(0, min(100, round(total_i / total_g * 100.0, 2))) if total_g else (100.0 if folders else 0.0),
+                "complete": bool(folders) and all(f['state'] == 'idle' and not f['paused'] and not f['needFiles'] and not f['pullErrors'] and not f['errors'] for f in snap['folders']),
                 "needBytes": need_bytes, "needFiles": need_files,
                 "speed": round(self._rates["out"] + self._rates["in"], 1),
             }
         except Exception as exc:
             activity.error("status aggregate failed: %s", exc)
             snap["syncthing"]["note"] = "状态聚合失败"
+            snap["syncthing"]["api_ok"] = False
         return snap
 
     def _sample_speed(self, total):
@@ -288,7 +330,10 @@ class STManager:
             data = self.client.get("/rest/cluster/pending/devices")
         except Exception:
             return []
-        items = data.get("pendingDevices") or []
+        if 'pendingDevices' in data:
+            items = data.get('pendingDevices') or []
+        else:
+            items = [dict(info, deviceID=did) for did, info in data.items()]
         return [{"deviceID": p.get("deviceID", ""), "name": p.get("name", ""),
                  "address": p.get("address", "")} for p in items]
 

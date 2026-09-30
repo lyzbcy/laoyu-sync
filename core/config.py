@@ -2,20 +2,33 @@
 import json
 import secrets
 import threading
+import os
+import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CONFIG_PATH = ROOT / "core" / "config.json"
-LOG_DIR = ROOT / "logs"
+ROOT = Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parent.parent))
+if sys.platform == 'win32':
+    _data = Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'LaoyuSync'
+elif sys.platform == 'darwin':
+    _data = Path.home() / 'Library/Application Support/LaoyuSync'
+else:
+    _data = Path.home() / '.local/share/LaoyuSync'
+DATA_DIR = Path(os.environ.get('LAOYU_SYNC_DATA', _data)).resolve()
+CONFIG_PATH = DATA_DIR / "config.json"
+LOG_DIR = DATA_DIR / "logs"
 UI_DIR = ROOT / "ui"
 
 _DEFAULTS = {
     "token": "",
     "port": 8390,
-    "update_manifest_url": "",
+    "update_manifest_url": "https://raw.githubusercontent.com/lyzbcy/laoyu-sync/main/version.json",
     "feedback_url": "",
     "last_update_check": "",
     "review_dismissed_at": "",
+    "last_update_attempt": "",
+    "pet_enabled": True,
+    "launch_count": 0,
+    "first_used": "",
 }
 
 _lock = threading.Lock()
@@ -42,14 +55,16 @@ def load():
             if changed:
                 _save(data)
             _cache = data
-        return _cache
+        return dict(_cache)
 
 
 def _save(data):
     CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(
+    temporary = CONFIG_PATH.with_suffix('.tmp')
+    temporary.write_text(
         json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    os.replace(temporary, CONFIG_PATH)
 
 
 def save():

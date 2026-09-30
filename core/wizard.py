@@ -7,6 +7,9 @@
 """
 import os
 import secrets
+import threading
+import urllib.parse
+from pathlib import Path
 
 import activity
 from stmanager import normalize_device_id
@@ -14,6 +17,28 @@ from stmanager import normalize_device_id
 
 class WizardError(Exception):
     """带中文可读信息的业务错误，网关原样透传给前端。"""
+
+MUTATION_LOCK = threading.Lock()
+
+def validate_path(raw_path, cfg):
+    raw = str(raw_path or '').strip()
+    if not raw:
+        raise WizardError('请先选择一个文件夹，不能留空')
+    path = Path(os.path.expanduser(raw)).resolve()
+    if not path.is_dir():
+        raise WizardError('路径不存在或不是文件夹，请先创建或选择已有文件夹')
+    if path == Path(path.anchor):
+        raise WizardError('请选择一个具体文件夹，不要直接同步整块磁盘')
+    for folder in cfg.get('folders', []):
+        existing = Path(folder.get('path', '')).expanduser().resolve()
+        if path == existing or path in existing.parents or existing in path.parents:
+            raise WizardError('这个位置与已有同步项目重叠，请选择独立文件夹')
+    if not os.access(path, os.W_OK):
+        raise WizardError('文件夹不可写，请选择有写入权限的位置')
+    return str(path)
+
+def endpoint(kind, identity):
+    return '/rest/config/' + kind + '/' + urllib.parse.quote(str(identity), safe='')
 
 
 def add_device_flow(mgr, raw_id, name, folder_ids, auto_accept=False):
@@ -25,6 +50,9 @@ def add_device_flow(mgr, raw_id, name, folder_ids, auto_accept=False):
 
     cfg = mgr.client.get("/rest/config")
     existing = {d.get("deviceID") for d in cfg.get("devices", [])}
+    available_folders = {f.get('id') for f in cfg.get('folders', [])}
+    if not isinstance(folder_ids, list) or any(fid not in available_folders for fid in folder_ids):
+        raise WizardError('共享项目不存在，请刷新后重新选择')
     if device_id in existing:
         raise WizardError("这个设备已经添加过了，不需要重复添加")
 
@@ -46,9 +74,13 @@ def add_device_flow(mgr, raw_id, name, folder_ids, auto_accept=False):
     restarted = mgr._maybe_restart(resp)
 
     shared = []
-    for fid in folder_ids:
-        restarted = _share_folder(mgr, device_id, fid) or restarted
-        shared.append(fid)
+    try:
+        for fid in folder_ids:
+            restarted = _share_folder(mgr, device_id, fid) or restarted
+            shared.append(fid)
+    except Exception as exc:
+        activity.user(f'设备已添加，但部分共享未完成：{exc}', 'warn')
+        return {'ok': True, 'device_id': device_id, 'shared': shared, 'warning': '设备已添加，部分共享失败，请在项目的共享设置中重试', 'tip': '请检查项目共享设置'}
     if shared:
         activity.user(f"已把 {len(shared)} 个文件夹共享给「{name}」")
 
@@ -68,17 +100,19 @@ def _share_folder(mgr, device_id, folder_id):
     devs = target.setdefault("devices", [])
     if not any(d.get("deviceID") == device_id for d in devs):
         devs.append({"deviceID": device_id})
-        resp = mgr.client.put(f"/rest/config/folders/{folder_id}", target)
+        resp = mgr.client.put(endpoint('folders', folder_id), target)
         return mgr._maybe_restart(resp)
     return False
 
 
 def remove_device_flow(mgr, device_id):
     cfg = mgr.client.get("/rest/config")
+    if device_id == mgr.client.get('/rest/system/status').get('myID'):
+        raise WizardError('不能移除本机设备')
     if not any(d.get("deviceID") == device_id for d in cfg.get("devices", [])):
         raise WizardError("设备不存在，可能已被移除")
     name = next((d.get("name", "") for d in cfg["devices"] if d["deviceID"] == device_id), "")
-    resp = mgr.client.delete(f"/rest/config/devices/{device_id}")
+    resp = mgr.client.delete(endpoint('devices', device_id))
     restarted = mgr._maybe_restart(resp)
     activity.user(f"已移除设备「{name or device_id[:7]}」")
     return {"ok": True, "restarted": restarted}
@@ -86,9 +120,8 @@ def remove_device_flow(mgr, device_id):
 
 def add_folder_flow(mgr, raw_path, label, share_with=None):
     """新建本机同步项目，可顺手共享给指定设备。"""
-    path = os.path.abspath(os.path.expanduser(str(raw_path or "").strip()))
-    if not os.path.isdir(path):
-        raise WizardError("路径不存在或不是文件夹，请填一个本机上真实存在的文件夹路径")
+    cfg = mgr.client.get('/rest/config')
+    path = validate_path(raw_path, cfg)
     label = (label or "").strip() or os.path.basename(path) or path
     share_with = [d for d in (share_with or []) if d]
     cfg = mgr.client.get("/rest/config")
@@ -103,6 +136,7 @@ def add_folder_flow(mgr, raw_path, label, share_with=None):
         "id": fid, "label": label, "path": path,
         "type": "sendreceive", "rescanIntervalS": 3600,
         "fsWatcherEnabled": True, "fsWatcherDelayS": 10,
+        "versioning": {"type": "trashcan", "params": {"cleanoutDays": "30"}},
         "devices": [{"deviceID": my_id}] + [{"deviceID": d} for d in share_with],
     })
     restarted = mgr._maybe_restart(resp)
@@ -119,12 +153,10 @@ def accept_folder_flow(mgr, folder_id, label, raw_path, device_id, auto_accept=F
     folder_id = str(folder_id or "").strip()
     if not folder_id:
         raise WizardError("缺少项目标识，请刷新页面重试")
-    pending = {p["folderID"]: p for p in mgr.pending_folders()}
+    pending = {p['folderID']: p for p in mgr.pending_folders() if p['deviceID'] == device_id}
     if folder_id not in pending:
         raise WizardError("这个邀请已经失效（对方可能撤回了），刷新看看最新的")
-    path = os.path.abspath(os.path.expanduser(str(raw_path or "").strip()))
-    if not os.path.isdir(path):
-        raise WizardError("保存位置不存在或不是文件夹，请选一个本机真实存在的文件夹")
+    path = validate_path(raw_path, mgr.client.get('/rest/config'))
     label = (label or "").strip() or pending[folder_id]["folderLabel"]
     my_id = mgr.client.get("/rest/system/status").get("myID", "")
     activity.user(f"正在接收项目「{label}」（来自 {pending[folder_id]['deviceName']}）…")
@@ -132,6 +164,7 @@ def accept_folder_flow(mgr, folder_id, label, raw_path, device_id, auto_accept=F
         "id": folder_id, "label": label, "path": path,
         "type": "sendreceive", "rescanIntervalS": 3600,
         "fsWatcherEnabled": True, "fsWatcherDelayS": 10,
+        "versioning": {"type": "trashcan", "params": {"cleanoutDays": "30"}},
         "devices": [{"deviceID": device_id}, {"deviceID": my_id}],
     })
     restarted = mgr._maybe_restart(resp)
@@ -155,10 +188,29 @@ def remove_folder_flow(mgr, folder_id):
     if target is None:
         raise WizardError("项目不存在，可能已被移除")
     label = target.get("label") or folder_id
-    resp = mgr.client.delete(f"/rest/config/folders/{folder_id}")
+    resp = mgr.client.delete(endpoint('folders', folder_id))
     mgr._maybe_restart(resp)
     activity.user(f"已移除同步项目「{label}」（本机文件保留在原位置）")
     return {"ok": True}
+
+def update_folder_flow(mgr, folder_id, devices=None, paused=None):
+    cfg = mgr.client.get('/rest/config')
+    target = next((f for f in cfg.get('folders', []) if f['id'] == folder_id), None)
+    if target is None:
+        raise WizardError('项目不存在，请刷新后重试')
+    if devices is not None:
+        known = {d['deviceID'] for d in cfg.get('devices', [])}
+        if not isinstance(devices, list) or any(d not in known for d in devices):
+            raise WizardError('共享设备不存在，请重新选择')
+        mine = mgr.client.get('/rest/system/status')['myID']
+        target['devices'] = [{'deviceID': d} for d in dict.fromkeys([mine] + devices)]
+    if paused is not None:
+        if not isinstance(paused, bool):
+            raise WizardError('暂停参数不正确')
+        target['paused'] = paused
+    mgr._maybe_restart(mgr.client.put(endpoint('folders', folder_id), target))
+    activity.user('项目共享/暂停设置已保存')
+    return {'ok': True}
 
 
 def set_auto_accept_flow(mgr, device_id, enabled):

@@ -1,0 +1,4 @@
+pywebview==6.2.1
+qrcode==8.2
+Pillow==12.3.0
+pyinstaller==6.16.0

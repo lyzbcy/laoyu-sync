@@ -25,7 +25,7 @@ window.addEventListener("error", function (e) {
   <aside class="side">
     <div class="brand">
       <div class="brand-logo">🐟</div>
-      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">两台电脑，像网盘一样互传</div></div>
+      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">文件自动同步，电脑轻松互联</div></div>
     </div>
     <nav>
       <a href="#/" data-page="dash" class="active">仪表盘</a>
@@ -35,7 +35,7 @@ window.addEventListener("error", function (e) {
       <a href="#/about" data-page="about">关于</a>
     </nav>
     <div class="side-foot">
-      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.2.0</span>
+      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.0</span>
     </div>
   </aside>
 
@@ -51,8 +51,15 @@ window.addEventListener("error", function (e) {
       <button id="btnChangelog2" class="btn small ghost">看看更新了啥</button>
     </div>
 
+    <div id="updateProgress" class="banner hidden"><progress id="updateMeter" max="100" value="0"></progress><span id="updateMessage"></span><a href="#" data-external="https://github.com/lyzbcy/laoyu-sync/releases">手动下载</a></div>
     <!-- 仪表盘 -->
     <section id="page-dash" class="page">
+      <div class="card onboarding">
+        <h3>第一次使用？三步连起来</h3>
+        <p>① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a></p>
+        <p class="mut small">同步会把修改和删除传到其他设备，请先用测试文件夹体验。新项目默认保留远端覆盖/删除的旧文件 30 天；同步不能代替备份。对方离线时，本机已同步不代表对方已收到。</p>
+        <button id="btnEngineStart" class="btn small">重试启动引擎</button>
+      </div>
       <div class="cards">
         <div class="card hero">
           <div class="ring-wrap">
@@ -60,7 +67,7 @@ window.addEventListener("error", function (e) {
               <circle cx="60" cy="60" r="52" class="ring-bg"/>
               <circle id="ringFg" cx="60" cy="60" r="52" class="ring-fg loading"/>
             </svg>
-            <div class="ring-num"><div id="ringPct" class="big">…</div><div class="mut">全部同步进度</div></div>
+            <div class="ring-num"><div id="ringPct" class="big">…</div><div class="mut">本机同步进度</div></div>
           </div>
           <div class="hero-info">
             <div id="heroState" class="hero-state">正在看一眼两台电脑的状态…</div>
@@ -204,7 +211,7 @@ window.addEventListener("error", function (e) {
           </div>
           <div class="fb">
             <label>想夸我 / 骂我 / 提需求？直接写：</label>
-            <textarea id="inFeedback" rows="3" placeholder="你的反馈会直接送到作者手里，不用注册不用跳转"></textarea>
+            <textarea id="inFeedback" rows="3" placeholder="写下问题或建议；未配置直达渠道时会复制内容，方便你提交"></textarea>
             <div class="row"><button id="btnFeedback" class="btn primary small" type="button">发送反馈</button><span id="fbMsg" class="form-msg"></span></div>
           </div>
           <div class="about-more">
@@ -212,7 +219,9 @@ window.addEventListener("error", function (e) {
               <button id="btnCheckUpdate" class="btn small" type="button">检查更新</button>
               <span id="checkUpdateMsg" class="form-msg"></span>
             </div>
-            <a href="#" data-external="http://127.0.0.1:8384" class="mut small">专家模式（Syncthing 原生英文设置，日常不用进）</a>
+            <label id="petSetting" class="check-line"><input type="checkbox" id="petEnabled">显示桌面小鱼（退出主程序时一起退出）</label>
+            <button id="btnLogs" class="btn small">复制诊断日志</button>
+            <a id="expertLink" href="#" data-external="http://127.0.0.1:8384" class="mut small">专家模式（Syncthing 原生英文设置，日常不用进）</a>
           </div>
           <img class="about-sticker" src="/assets/stickers/第11弹-谢谢.png" alt="谢谢">
         </div>

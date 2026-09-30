@@ -5,7 +5,8 @@ const $ = (id) => document.getElementById(id);
 
 let TOKEN = "";
 try { TOKEN = sessionStorage.getItem("t") || ""; } catch (e) { /* 内嵌浏览器可能禁用存储 */ }
-TOKEN = TOKEN || new URLSearchParams(location.search).get("t") || "";
+TOKEN = new URLSearchParams(location.search).get("t") || TOKEN;
+if (TOKEN) history.replaceState(null, "", location.pathname + location.hash);
 try { if (TOKEN) sessionStorage.setItem("t", TOKEN); } catch (e) { /* ignore */ }
 
 if (!TOKEN) {
@@ -197,6 +198,8 @@ let LAST_EVENT = 0;
 let LAST_STATUS = null;
 let HAS_PICKER = false;
 let FAILS = 0;
+let STATUS_TIMER, PENDING_TIMER;
+let SHARES_KEY = "", DEVICES_KEY = "", PENDING_KEY = "";
 
 async function pollStatus() {
   try {
@@ -206,14 +209,15 @@ async function pollStatus() {
     renderPendingAlert();
     if (!$("page-dash").classList.contains("hidden")) { renderDash(); renderDashErrors(); }
     if (!$("page-devices").classList.contains("hidden")) { renderDeviceList(); renderShareFolders(); }
-    if (!$("page-folders").classList.contains("hidden")) { renderFolderList(); }
+    if (!$("page-folders").classList.contains("hidden")) { renderFolderList(); renderNewProjectDevices(); }
   } catch (e) {
     if (++FAILS >= 3) {
       $("statusText").textContent = friendly(e);
       $("statusCapsule").querySelector(".dot").className = "dot red";
     }
   }
-  setTimeout(pollStatus, 2000);
+  clearTimeout(STATUS_TIMER);
+  STATUS_TIMER = setTimeout(pollStatus, 2000);
 }
 
 async function pollEvents() {
@@ -235,9 +239,11 @@ async function pollPending() {
     $("dot-devices").classList.toggle("hidden", !PENDING_DEVICES.length);
     $("dot-folders").classList.toggle("hidden", !PENDING_FOLDERS.length);
     renderPendingDevices();
-    renderPendingProjects();
+    const key = JSON.stringify(PENDING_FOLDERS);
+    if (key !== PENDING_KEY) { PENDING_KEY = key; renderPendingProjects(); }
   } catch (e) { /* 忽略 */ }
-  setTimeout(pollPending, 3000);
+  clearTimeout(PENDING_TIMER);
+  PENDING_TIMER = setTimeout(pollPending, 3000);
 }
 
 /* ---------------- 顶部状态胶囊 ---------------- */
@@ -248,6 +254,9 @@ function stateOf(s) {
   if (!s.syncthing.api_ok)
     return { key: "grey", text: "小助手正在热身，几秒后自动开始", color: "var(--grey)" };
   const fs = s.folders || [];
+  if (!fs.length) return {key: "grey", text: "还没有同步项目，跟着下面三步开始", color: "var(--grey)"};
+  if (fs.some(f => f.state === "unavailable")) return {key: "red", text: "部分项目状态暂时无法读取", color: "var(--red)"};
+  if (fs.some(f => f.paused)) return {key: "orange", text: "有项目已暂停", color: "var(--orange)"};
   const badFolders = fs.filter((f) => f.state === "error");
   if (fs.some((f) => f.pullErrors > 0))
     return { key: "red", text: `有 ${fs.reduce((a, f) => a + f.pullErrors, 0)} 个文件没同步成功`, color: "var(--red)" };
@@ -259,7 +268,8 @@ function stateOf(s) {
     return { key: "teal", text: "正在检查文件变化", color: "var(--teal)" };
   if (s.total.needFiles > 0)
     return { key: "orange", text: `${s.total.needFiles} 个文件排队同步中`, color: "var(--orange)" };
-  return { key: "green", text: "两台电脑内容一致 " + fmtPct(s.total.pct), color: "var(--green)" };
+  if (!s.total.complete) return {key: "orange", text: "正在确认项目状态", color: "var(--orange)"};
+  return { key: "green", text: "本机文件已同步 " + fmtPct(s.total.pct), color: "var(--green)" };
 }
 
 function renderCapsule() {
@@ -287,6 +297,8 @@ $("btnGoPending").onclick = () => { location.hash = "#/folders"; };
 /* ---------------- 仪表盘 ---------------- */
 
 function stateLabel(f) {
+  if (f.paused) return "已暂停";
+  if (f.state === "unavailable") return "状态暂时无法读取";
   if (f.state === "error") return "出错了，检查保存位置";
   if (f.pullErrors > 0) return `${f.pullErrors} 个文件待重传`;
   if (f.state === "syncing") return "同步中";
@@ -309,8 +321,9 @@ function folderCard(f) {
     <div class="folder-head">
       <span class="dot" style="background:${color}"></span>
       <span class="folder-label">${esc(f.label)}</span>
-      <span class="badge" style="background:${color}">${stateLabel(f)}</span>
-      ${rm}
+      <span class="badge" style="background:${color}">${esc(stateLabel(f))}</span>
+      <button class="btn small" data-share-folder="${esc(f.id)}">共享设置</button>
+      <button class="btn small" data-pause-folder="${esc(f.id)}" data-paused="${!!f.paused}">${f.paused ? "继续" : "暂停"}</button>${rm}
     </div>
     <div class="bar"><div style="width:${Math.min(100, f.pct)}%;background:${color}"></div></div>
     <div class="folder-sub"><span>${fmtPct(f.pct)}</span><span>共 ${fmtBytes(f.globalBytes)}</span></div>
@@ -322,11 +335,26 @@ $("dashFolders").addEventListener("click", removeFolderClick);
 $("folderList").addEventListener("click", removeFolderClick);
 
 async function removeFolderClick(e) {
+  const shareId = e.target.dataset.shareFolder;
+  if (shareId) {
+    const folder = LAST_STATUS.folders.find(f => f.id === shareId);
+    const peers = LAST_STATUS.devices.filter(d => !d.self);
+    if (!peers.length) { toast("先去设备与配对添加另一台电脑"); return; }
+    const ok = await confirmBox("共享设置", peers.map(d => `<label class="check-line"><input type="checkbox" data-share-choice value="${esc(d.id)}" ${(folder.deviceIDs || []).includes(d.id) ? "checked" : ""}>${esc(d.name)}</label>`).join(""), "保存");
+    if (!ok) return;
+    try { await api("POST", "/api/folder/update", {folder_id: shareId, devices: [...document.querySelectorAll("[data-share-choice]:checked")].map(i => i.value)}); toast("共享已保存，等待对方接受"); pollStatus(); } catch(e) { toast(friendly(e)); }
+    return;
+  }
+  const pauseId = e.target.dataset.pauseFolder;
+  if (pauseId) {
+    await withLoading(e.target, async () => { try { await api("POST", "/api/folder/update", {folder_id: pauseId, paused: e.target.dataset.paused !== "true"}); pollStatus(); } catch(e) { toast(friendly(e)); } });
+    return;
+  }
   const id = e.target.dataset && e.target.dataset.removeFolder;
   if (!id) return;
   const name = e.target.dataset.folderName || "这个项目";
   const ok = await confirmBox("移除同步项目？",
-    `移除「${esc(name)}」后两台电脑就不再同步这个项目了。<b>本机已收到的文件会保留</b>，只是不再更新。`, "移除");
+    `移除「${esc(name)}」后本机就不再同步这个项目了。<b>本机已收到的文件会保留</b>，只是不再更新。`, "移除");
   if (!ok) return;
   await withLoading(e.target, async () => {
     try {
@@ -341,7 +369,7 @@ function renderDash() {
   const s = LAST_STATUS;
   const st = stateOf(s);
   const pct = Math.min(100, s.total.pct);
-  $("ringPct").textContent = s.syncthing.api_ok ? fmtPct(s.total.pct) : "…";
+  $("ringPct").textContent = s.syncthing.api_ok && s.folders.length && !s.folders.some(f => f.state === "unavailable") ? fmtPct(s.total.pct) : "—";
   const fg = $("ringFg");
   fg.classList.remove("loading");
   fg.style.strokeDashoffset = (326.7 * (1 - pct / 100)).toFixed(1);
@@ -375,12 +403,13 @@ async function renderDashErrors() {
     const data = await api("GET", "/api/folder-errors");
     const lines = [];
     data.folders.forEach((f) => {
-      lines.push(`「${esc(f.folder)}」有 ${f.count} 个文件没同步成功。常见原因：文件名里带了电脑不让用的符号（比如英文的 ? * | ）。把名字改简单点，就会自动重传：`);
-      f.items.forEach((it) => lines.push(`<span class="mono">…${esc(it.path.slice(-46))}</span>`));
+      lines.push(`「${esc(f.folder)}」有 ${f.count} 个文件未同步。检查下方原因，修正后会自动重试：`);
+      f.items.forEach((it) => lines.push(`<span class="mono">…${esc(it.path.slice(-46))}</span>：${esc(it.message)}`));
     });
     box.innerHTML = lines.join("<br>");
   } catch (e) {
-    box.innerHTML = "有几个文件没同步成功，把文件名改简单点（别带 ? * | 这类符号）就会自动重传。";
+    box.innerHTML = "失败详情暂时无法读取，请稍后重试，或复制诊断日志排查。";
+    box._loaded = false;
   }
 }
 
@@ -416,8 +445,12 @@ $("btnCopyId").onclick = async () => {
 
 function renderShareFolders() {
   if (!LAST_STATUS) return;
+  const key = JSON.stringify(LAST_STATUS.folders.map(f => [f.id, f.label]));
+  if (key === SHARES_KEY) return;
+  const selected = new Set([...document.querySelectorAll("#shareFolders input:checked")].map(i => i.value));
+  SHARES_KEY = key;
   $("shareFolders").innerHTML = LAST_STATUS.folders.map((f) =>
-    `<label class="check-line"><input type="checkbox" value="${esc(f.id)}" checked>${esc(f.label)}</label>`
+    `<label class="check-line"><input type="checkbox" value="${esc(f.id)}" ${selected.has(f.id) ? "checked" : ""}>${esc(f.label)}</label>`
   ).join("") || `<span class="mut small">还没有同步项目，可以先去「同步项目」页建一个</span>`;
 }
 
@@ -454,6 +487,8 @@ $("pendingList").addEventListener("click", async (e) => {
 
 $("addDeviceForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  const btn = $("btnAddDevice");
+  if (btn.disabled) return;
   const device_id = $("inDeviceId").value.trim();
   if (!device_id) { toast("先把对方的「电脑号码」粘贴进来"); return; }
   const folders = [...document.querySelectorAll("#shareFolders input:checked")].map((i) => i.value);
@@ -464,20 +499,22 @@ $("addDeviceForm").addEventListener("submit", async (e) => {
   const msg = $("addDeviceMsg");
   msg.className = "form-msg";
   msg.textContent = "正在添加…";
+  btn.disabled = true;
   try {
-    await api("POST", "/api/device/add", {
+    const result = await api("POST", "/api/device/add", {
       device_id, name: $("inDeviceName").value.trim(), folders,
       auto_accept: $("inAutoAccept").checked,
     });
     msg.className = "form-msg ok";
-    msg.textContent = "申请已发出！对方屏幕上会出现确认提示，等 TA 点接受就通了";
+    msg.textContent = result.warning || result.tip || "设备已添加，等待对方接受";
+    await pollStatus();
     $("inDeviceId").value = "";
     $("inDeviceName").value = "";
     renderDeviceList();
   } catch (err) {
     msg.className = "form-msg bad";
     msg.textContent = friendly(err);
-  }
+  } finally { btn.disabled = false; }
 });
 
 function renderDeviceList() {
@@ -524,6 +561,9 @@ async function refreshFoldersPage() {
 
 function renderNewProjectDevices() {
   if (!LAST_STATUS) return;
+  const key = JSON.stringify(LAST_STATUS.devices.map(d => [d.id, d.name]));
+  if (key === DEVICES_KEY) return;
+  DEVICES_KEY = key;
   $("newProjectDevices").innerHTML = LAST_STATUS.devices.filter((d) => !d.self).map((d) =>
     `<label class="check-line"><input type="checkbox" value="${esc(d.id)}" ${d.connected ? "" : ""}>${esc(d.name)}${d.connected ? "" : "（离线，上线后会收到）"}</label>`
   ).join("") || `<span class="mut small">还没有别的电脑。先去「设备与配对」添加一台，回来就能勾选共享</span>`;
@@ -640,7 +680,7 @@ $("btnFeedback").onclick = async () => {
   await withLoading($("btnFeedback"), async () => {
     if (!FEEDBACK_CONFIGURED) {
       await copyText(text);
-      $("fbMsg").textContent = "反馈渠道还在搭建，内容已复制，去个人主页找我就行";
+      $("fbMsg").textContent = "内容已复制，请通过作者主页或 GitHub Issue 提交";
       return;
     }
     try {
@@ -662,10 +702,7 @@ async function loadVersion() {
     if (u.enabled && u.has_update) {
       $("updateBanner").classList.remove("hidden");
       $("updateText").textContent = `发现新版本 v${u.remote_version}（现在 v${v.version}）`;
-      $("btnUpdate").onclick = () => {
-        openExternal(u.download_url || "https://github.com/lyzbcy/laoyu-sync/releases");
-        toast("已打开下载页；下载慢的话过会儿再试");
-      };
+      $("btnUpdate").onclick = beginUpdate;
       $("btnChangelog2").onclick = () => showChangelog(v);
     }
   } catch (e) { /* ignore */ }
@@ -677,9 +714,10 @@ $("btnCheckUpdate").onclick = async () => {
     try {
       const r = await api("POST", "/api/version/check");
       const u = r.update || {};
+      await loadVersion();
       $("checkUpdateMsg").textContent = u.enabled
-        ? (u.has_update ? `有新版本 v${u.remote_version}！顶部有更新按钮` : "已经是最新版，粒子都在正确位置上")
-        : "更新源还没接好（等仓库上线）";
+        ? (u.error ? u.error : u.has_update ? `有新版本 v${u.remote_version}！顶部有更新按钮` : "当前版本已是最新正式版")
+        : "更新源未配置，请前往发布页";
     } catch (e) { $("checkUpdateMsg").textContent = friendly(e); }
   }, "检查中…");
 };
@@ -698,10 +736,15 @@ async function loadMeta() {
     const meta = await api("GET", "/api/meta");
     FEEDBACK_CONFIGURED = !!meta.feedback_url_configured;
     HAS_PICKER = !!meta.has_window_picker;
+    $("petEnabled").checked = meta.pet_enabled;
+    $("petSetting").classList.toggle("hidden", meta.platform !== "Windows");
+    $("expertLink").dataset.external = meta.engine_url;
+    if (meta.review_due) showReview();
   } catch (e) { /* ignore */ }
 }
 
 function boot() {
+  if (!TOKEN) return;
   route();
   loadMeta();
   pollStatus();
@@ -710,4 +753,26 @@ function boot() {
   loadVersion();
 }
 
-boot();  // 必须放在所有声明之后（会引用 PAGES 等 const）
+$("petEnabled").onchange = async e => { try { await api("POST", "/api/settings", {pet_enabled: e.target.checked}); } catch(err) { e.target.checked = !e.target.checked; toast(friendly(err)); } };
+$("btnLogs").onclick = async () => { try { const d = await api("GET", "/api/diagnostics"); if (await copyText(d.text)) toast("诊断日志已复制；可能包含路径和设备名称，请检查后再分享"); else infoModal("请手动复制诊断日志", `<p>自动复制失败，请选中下面内容复制；分享前检查路径和设备名称。</p><textarea rows="12" style="width:100%">${esc(d.text)}</textarea>`); } catch(e) { toast(friendly(e)); } };
+$("btnEngineStart").onclick = async () => { try { await api("POST", "/api/engine/start"); toast("正在尝试启动引擎，请查看动态"); } catch(e) { toast(friendly(e)); } };
+async function showReview() {
+  const ok = await confirmBox("小助手帮上忙了吗？", "如果用起来顺手，你愿意给项目点一个 Star 吗？这对我很有帮助。关闭后至少 15 天不再提示。", "去点 Star");
+  await api("POST", "/api/settings", {dismiss_review: true});
+  if (ok) openExternal("https://github.com/lyzbcy/laoyu-sync");
+}
+async function beginUpdate() {
+  const ok = await confirmBox("更新并重启", "更新会保留你的同步配置和文件。国内 GitHub 下载较慢时可开启代理。完成后窗口会自动重新打开。", "更新");
+  if (!ok) return;
+  try { await api("POST", "/api/update/start"); $("updateProgress").classList.remove("hidden"); watchUpdate(); } catch(e) { toast(friendly(e), 6000); }
+}
+async function watchUpdate() {
+  try {
+    const u = await api("GET", "/api/update/status");
+    $("updateMeter").value = u.percent;
+    $("updateMessage").textContent = u.message;
+    $("btnUpdate").disabled = !["failed", "idle"].includes(u.stage);
+    if (!["failed", "idle"].includes(u.stage)) setTimeout(watchUpdate, 700);
+  } catch(e) { $("updateMessage").textContent = "正在重启；若没有自动打开，请重新打开软件。"; }
+}
+boot();

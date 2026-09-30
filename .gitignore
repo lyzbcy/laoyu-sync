@@ -5,3 +5,9 @@ __pycache__/
 # 含本机令牌，绝不入库（首次运行会自动生成）
 core/config.json
 .DS_Store
+.build-cache/
+build/
+dist/
+engine/
+verification/
+*.tmp
