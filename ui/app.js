@@ -728,7 +728,7 @@ $("btnFeedback").onclick = async () => {
   if (!text) { toast("先写点什么再发"); return; }
   await withLoading($("btnFeedback"), async () => {
     if (!FEEDBACK_CONFIGURED) {
-      $("fbMsg").textContent = "反馈接收服务尚未开通，内容保留在此处，没有发送。";
+      $("fbMsg").textContent = "企业微信反馈渠道尚未配置，内容保留在此处，没有发送。";
       return;
     }
     try {
@@ -808,7 +808,7 @@ async function loadMeta() {
     const meta = await api("GET", "/api/meta");
     FEEDBACK_CONFIGURED = !!meta.feedback_url_configured;
     $("btnFeedback").disabled = !FEEDBACK_CONFIGURED;
-    $("feedbackChannel").textContent = FEEDBACK_CONFIGURED ? '提交后由接收服务转发给开发者；收到送达确认后才显示成功。' : '反馈接收服务尚未开通，目前不能直达开发者；可先复制反馈与诊断。';
+    $("feedbackChannel").textContent = FEEDBACK_CONFIGURED ? '留言和勾选的日志附件直接发送至作者的企业微信群，不经过捞鱼服务器；企业微信确认接收后才显示成功。' : '企业微信反馈渠道尚未配置，目前不能直达开发者；可先复制反馈与诊断。';
     HAS_PICKER = !!meta.has_window_picker;
     $("petEnabled").checked = meta.pet_enabled;
     $("petSetting").classList.toggle("hidden", meta.platform !== "Windows");

@@ -248,7 +248,7 @@ window.addEventListener("error", function (e) {
         <select id="feedbackCategory"><option>未分类</option><option>连接与配对</option><option>已有项目识别</option><option>文件同步</option><option>桌面小鱼</option><option>安装与更新</option><option>建议与评价</option><option>其他</option></select>
         <label for="inFeedback">备注或建议</label>
         <textarea id="inFeedback" rows="5" maxlength="4000" placeholder="例如：已有 Tailscale，打开后旧项目没有出现；原来使用的同步工具是……"></textarea>
-        <label class="check-line small"><input id="feedbackLogs" type="checkbox" checked>附带诊断日志，帮助定位问题</label>
+        <label class="check-line small"><input id="feedbackLogs" type="checkbox" checked>将诊断日志作为 ZIP 附件发到企业微信，帮助定位问题</label>
         <p class="mut small">不读取同步文件内容或配置密钥；日志发送前会隐藏令牌、设备号码、常见路径与网络地址。自由文字可能仍包含个人信息，请预览后决定，也可取消勾选。</p>
         <details><summary id="previewFeedbackLogs">预览将附带的诊断日志</summary><pre id="feedbackLogPreview" class="small">展开后读取</pre></details>
         <p id="feedbackChannel" class="mut small">正在检查反馈接收渠道…</p>

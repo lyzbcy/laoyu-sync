@@ -66,6 +66,8 @@ def main():
                 return json.load(response)
         result['engine_ready'] = api('/api/status')['syncthing']['api_ok']
         assert result['engine_ready']
+        result['feedback_url_configured'] = api('/api/meta')['feedback_url_configured']
+        assert result['feedback_url_configured'], 'packaged feedback channel missing'
         api('/api/settings', {'pet_enabled':False})
         api('/api/settings', {'pet_enabled':True})
         time.sleep(1)

@@ -42,3 +42,5 @@ Inno Setup 6 的 ISCC 编译 installer/windows.iss；Actions 构建 Windows 和 
 外壳 MIT，Syncthing MPL-2.0 独立进程，原始许可证与源码地址随包提供。见 THIRD_PARTY_NOTICES.md。原创表情素材归原作者所有。
 
 开发版0.3.3规范审计见docs/requirements-audit.md：反馈客户端已补一级入口、分类、日志选择/预览和接收确认，但接收服务尚未开通，不能直达作者；正式发布版仍为0.3.2。
+
+0.3.3按用户指定方式直发企业微信：日志为群内ZIP附件，不经过捞鱼服务器。预配置机器人链接仅注入发行包，不放公开源码；自行从源码构建未注入配置时不会发送。

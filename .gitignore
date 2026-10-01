@@ -13,3 +13,4 @@ verification/
 *.tmp
 server/*.env
 server/.env*
+feedback-channel.json

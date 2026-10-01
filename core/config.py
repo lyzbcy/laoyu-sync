@@ -74,7 +74,14 @@ def save():
 
 
 def get(key):
-    return load().get(key, _DEFAULTS.get(key))
+    value = load().get(key, _DEFAULTS.get(key))
+    if key == 'feedback_url' and not value:
+        path = Path(os.environ.get('LAOYU_FEEDBACK_CONFIG_PATH', ROOT / 'feedback-channel.json'))
+        try:
+            return json.loads(path.read_text(encoding='utf-8')).get('webhook', '')
+        except (OSError, ValueError):
+            return ''
+    return value
 
 
 def set(key, value):
