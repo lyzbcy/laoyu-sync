@@ -11,3 +11,5 @@ dist/
 engine/
 verification/
 *.tmp
+server/*.env
+server/.env*

@@ -16,6 +16,7 @@ description: 开发维护捞鱼同步小助手。先读开发导航，按模块�
 - docs/：唯一导航 docs/agent.md，开发任何功能前先读对应模块。
 - assets/图标；scripts/官方引擎校验/构建；installer/安装器；tests/安全回归。
 - verification/、dist/、engine/：本机验收、构建与上游引擎，不入库。
+- server/：独立反馈中转服务与部署配置，不随客户端打包；群机器人凭据仅保存在服务器/仓库外。
 
 ## 约定
 

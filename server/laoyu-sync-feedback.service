@@ -1,0 +1,22 @@
+[Unit]
+Description=Laoyu Sync feedback relay
+After=network-online.target
+
+[Service]
+User=laoyu-feedback
+Group=laoyu-feedback
+EnvironmentFile=/etc/laoyu-sync-feedback.env
+ExecStart=/usr/bin/python3 /opt/laoyu-sync-feedback/feedback_service.py
+Restart=on-failure
+WorkingDirectory=/var/lib/laoyu-sync-feedback
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/laoyu-sync-feedback
+PrivateTmp=true
+MemoryMax=96M
+CPUQuota=15%
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

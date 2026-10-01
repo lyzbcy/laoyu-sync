@@ -4,6 +4,7 @@ import platform
 import re
 import urllib.parse
 import urllib.request
+import uuid
 import config
 import version
 
@@ -34,7 +35,11 @@ def payload(body, engine_key=''):
     include = body.get('include_logs', True)
     if not isinstance(include, bool):
         raise ValueError('日志选项不正确')
-    return {'product': 'laoyu-sync', 'version': version.__version__, 'platform': platform.system(),
+    try:
+        request_id = str(uuid.UUID(str(body.get('request_id') or uuid.uuid4())))
+    except ValueError:
+        raise ValueError('反馈编号不正确') from None
+    return {'product': 'laoyu-sync', 'request_id': request_id, 'version': version.__version__, 'platform': platform.system(),
             'category': category, 'text': text, 'logs': diagnostics(engine_key) if include else None}
 
 

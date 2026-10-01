@@ -721,6 +721,7 @@ function renderEvents(events) {
 
 let FEEDBACK_CONFIGURED = false;
 let VERSION_TIMER;
+let FEEDBACK_REQUEST_ID, FEEDBACK_SIGNATURE;
 
 $("btnFeedback").onclick = async () => {
   const text = $("inFeedback").value.trim();
@@ -731,7 +732,10 @@ $("btnFeedback").onclick = async () => {
       return;
     }
     try {
-      const r = await api("POST", "/api/feedback", { text, category: $("feedbackCategory").value, include_logs: $("feedbackLogs").checked });
+      const category = $("feedbackCategory").value, include_logs = $("feedbackLogs").checked;
+      const signature = JSON.stringify([text, category, include_logs]);
+      if (signature !== FEEDBACK_SIGNATURE) { FEEDBACK_SIGNATURE = signature; FEEDBACK_REQUEST_ID = crypto.randomUUID(); }
+      const r = await api("POST", "/api/feedback", { text, category, include_logs, request_id: FEEDBACK_REQUEST_ID });
       if (r.ok) { $("fbMsg").textContent = `接收方已确认送达（${r.receipt_id}），谢谢你！`; $("inFeedback").value = ""; }
     } catch (e) {
       $("fbMsg").textContent = friendly(e) + "；你的内容仍保留，可重试或复制。";
