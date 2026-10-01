@@ -1,7 +1,7 @@
-VSVersionInfo(ffi=FixedFileInfo(filevers=(0, 3, 2, 0),prodvers=(0, 3, 2, 0),mask=0x3f,flags=0,OS=0x40004,fileType=1,subtype=0,date=(0,0)), kids=[StringFileInfo([StringTable('080404b0',[StringStruct('CompanyName', '捞鱼工作室'),
+VSVersionInfo(ffi=FixedFileInfo(filevers=(0, 3, 3, 0),prodvers=(0, 3, 3, 0),mask=0x3f,flags=0,OS=0x40004,fileType=1,subtype=0,date=(0,0)), kids=[StringFileInfo([StringTable('080404b0',[StringStruct('CompanyName', '捞鱼工作室'),
 StringStruct('FileDescription', '捞鱼同步小助手'),
-StringStruct('FileVersion', '0.3.2'),
+StringStruct('FileVersion', '0.3.3'),
 StringStruct('InternalName', 'LaoyuSync'),
 StringStruct('OriginalFilename', 'LaoyuSync.exe'),
 StringStruct('ProductName', 'Laoyu Sync'),
-StringStruct('ProductVersion', '0.3.2')])]),VarFileInfo([VarStruct('Translation',[2052,1200])])])
+StringStruct('ProductVersion', '0.3.3')])]),VarFileInfo([VarStruct('Translation',[2052,1200])])])

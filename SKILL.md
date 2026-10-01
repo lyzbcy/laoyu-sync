@@ -11,7 +11,7 @@ description: 开发维护捞鱼同步小助手。先读开发导航，按模块�
 
 ## 地图
 
-- core/：app入口、gateway鉴权、stmanager快照、wizard配对/共享、pet小鱼、updater校验升级、activity双通道日志。
+- core/：app入口、gateway鉴权、stmanager快照、wizard配对/共享、pet小鱼、updater校验升级、feedback反馈协议/脱敏、activity双通道日志。
 - ui/：中文界面与原创表情，无构建链。
 - docs/：唯一导航 docs/agent.md，开发任何功能前先读对应模块。
 - assets/图标；scripts/官方引擎校验/构建；installer/安装器；tests/安全回归。
@@ -21,7 +21,7 @@ description: 开发维护捞鱼同步小助手。先读开发导航，按模块�
 
 先读 docs/roadmap.md 和模块文档。小写英文文件名；稳定产品 ID laoyu-sync，主程序 LaoyuSync.exe。小改沿用main，大改feature/<主题>；提交说明结果与验证。长操作 activity.user 事件流，开发日志轮转到用户数据目录；禁止记录令牌、密钥、文件内容。
 
-版本源 core/version.py 的 __version__/CHANGELOG，当前 0.3.2。每次交付同步代码、文档、版本并推送既定远端，不改变可见性。安装器/界面/Mac元数据同步。scripts/package.py 生成真实哈希；根 version.json 是正式更新元数据，包公开并校验后才更新，不以源码版本冒充已发布版本。同版本公开包不可覆盖。
+版本源 core/version.py 的 __version__/CHANGELOG，当前 0.3.3。每次交付同步代码、文档、版本并推送既定远端，不改变可见性。安装器/界面/Mac元数据同步。scripts/package.py 生成真实哈希；根 version.json 是正式更新元数据，包公开并校验后才更新，不以源码版本冒充已发布版本。同版本公开包不可覆盖。
 
 ## 能力与验收入口
 
@@ -30,7 +30,7 @@ description: 开发维护捞鱼同步小助手。先读开发导航，按模块�
 - Mac独立CI包；签名公证和实机验收待完成，一键目录替换不开放。
 - 启动器适配先读 E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md；launcher-adapter.json + 严格自查，目录登记、客户端发布和真实安装识别分开记录。
 - 独立 Kimi 网页回归与报告在 verification/。
-- 求Star达到使用天数/次数门槛后提示，关闭15天不打扰。反馈服务无可信配置时复制，不宣称发送。
+- 求Star达到使用天数/次数门槛后提示，关闭15天不打扰。正式0.3.2反馈未完成；0.3.3开发版增加一级入口、分类和日志预览，接收服务尚缺配置。无接收渠道禁用提交，复制是单独动作，不宣称送达。
 
 ## 红线
 

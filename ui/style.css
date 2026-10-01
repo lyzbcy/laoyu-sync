@@ -513,4 +513,6 @@ nav a.active {background:#345045;box-shadow:inset 3px 0 #83c9a6}
 .network-peers {display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}.network-peer {display:flex;align-items:center;gap:9px;padding:10px 14px;background:#f3f7f4;border:1px solid #e2ebe5;border-radius:9px}
 #tailscalePeers {margin-bottom:20px}.onboarding h3 {font-size:14px}.hero-state {font-size:22px}
 #configLocation {overflow-wrap:anywhere}.onboarding details {margin:12px 0}.onboarding summary {cursor:pointer}
+#feedbackLogPreview {white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto;padding:12px;background:#f4f7f5;border-radius:8px}
+#page-feedback .card {max-width:840px}#page-feedback h1 {margin-bottom:20px}
 @media (max-width:1000px) {.main {padding:18px 20px 28px}.topbar {margin:-18px -20px 20px;padding:12px 20px}.heading-note {display:none}.connection-card {gap:10px;padding:15px}.connection-badge {display:none}.side {width:194px}}

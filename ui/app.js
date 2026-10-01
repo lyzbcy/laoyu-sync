@@ -32,7 +32,7 @@ async function api(method, path, body) {
 function friendly(e) {
   const msg = String(e && e.message || e);
   if (msg.includes("401")) return "本机令牌不对，请关掉窗口，从启动器重新打开";
-  if (/\b5\d\d\b|Failed to fetch|NetworkError/i.test(msg)) return "程序开小差了，稍等几秒会自动重试；一直不行就关掉重开，再到「关于」页找作者聊聊";
+  if (/\b5\d\d\b|Failed to fetch|NetworkError/i.test(msg)) return "暂时未能完成操作，请稍后重试；可点击侧栏「遇到问题反馈」查看诊断";
   return msg;
 }
 
@@ -174,7 +174,7 @@ function infoModal(title, html) {
 
 /* ---------------- 路由 ---------------- */
 
-const PAGES = ["dash", "devices", "folders", "events", "about"];
+const PAGES = ["dash", "devices", "folders", "events", "feedback", "about"];
 function route() {
   const name = (location.hash.replace(/^#\//, "") || "dash").split("?")[0];
   const page = PAGES.includes(name) ? name : "dash";
@@ -720,24 +720,37 @@ function renderEvents(events) {
 /* ---------------- 关于 / 反馈 / 更新 ---------------- */
 
 let FEEDBACK_CONFIGURED = false;
+let VERSION_TIMER;
 
 $("btnFeedback").onclick = async () => {
   const text = $("inFeedback").value.trim();
   if (!text) { toast("先写点什么再发"); return; }
   await withLoading($("btnFeedback"), async () => {
     if (!FEEDBACK_CONFIGURED) {
-      const copied = await copyText(text);
-      $("fbMsg").textContent = copied ? "内容已复制，请通过作者主页或 GitHub Issue 提交" : "自动复制失败，内容保留在输入框，请手动复制后提交";
+      $("fbMsg").textContent = "反馈接收服务尚未开通，内容保留在此处，没有发送。";
       return;
     }
     try {
-      const r = await api("POST", "/api/feedback", { text });
-      if (r.ok) { toast("已送达，谢谢你！"); $("inFeedback").value = ""; }
+      const r = await api("POST", "/api/feedback", { text, category: $("feedbackCategory").value, include_logs: $("feedbackLogs").checked });
+      if (r.ok) { $("fbMsg").textContent = `接收方已确认送达（${r.receipt_id}），谢谢你！`; $("inFeedback").value = ""; }
     } catch (e) {
-      const copied = await copyText(text);
-      $("fbMsg").textContent = copied ? "发送失败，内容已复制，可通过作者主页提交" : "发送和自动复制失败，内容保留在输入框，请手动复制后提交";
+      $("fbMsg").textContent = friendly(e) + "；你的内容仍保留，可重试或复制。";
     }
   }, "发送中…");
+};
+$("previewFeedbackLogs").onclick = async () => {
+  try { $("feedbackLogPreview").textContent = (await api('GET', '/api/diagnostics')).text; }
+  catch(e) { $("feedbackLogPreview").textContent = friendly(e); }
+};
+$("btnCopyFeedback").onclick = async () => {
+  await withLoading($("btnCopyFeedback"), async () => {
+    try {
+      const v = await api('GET', '/api/version');
+      const log = $("feedbackLogs").checked ? (await api('GET','/api/diagnostics')).text : '用户选择不附带日志';
+      const copied = await copyText(`捞鱼同步小助手 v${v.version}\n分类：${$("feedbackCategory").value}\n留言：${$("inFeedback").value}\n\n${log}`);
+      $("fbMsg").textContent = copied ? '已复制，尚未发送给开发者。' : '复制失败，内容仍保留。';
+    } catch(e) { $("fbMsg").textContent = friendly(e); }
+  });
 };
 
 async function loadVersion() {
@@ -759,6 +772,8 @@ async function loadVersion() {
       $("btnChangelog2").onclick = () => showChangelog(v);
     }
   } catch (e) { /* ignore */ }
+  clearTimeout(VERSION_TIMER);
+  VERSION_TIMER = setTimeout(loadVersion, 5000); // local cache only; background check may finish after boot
 }
 
 $("btnCheckUpdate").onclick = async () => {
@@ -788,6 +803,8 @@ async function loadMeta() {
   try {
     const meta = await api("GET", "/api/meta");
     FEEDBACK_CONFIGURED = !!meta.feedback_url_configured;
+    $("btnFeedback").disabled = !FEEDBACK_CONFIGURED;
+    $("feedbackChannel").textContent = FEEDBACK_CONFIGURED ? '提交后由接收服务转发给开发者；收到送达确认后才显示成功。' : '反馈接收服务尚未开通，目前不能直达开发者；可先复制反馈与诊断。';
     HAS_PICKER = !!meta.has_window_picker;
     $("petEnabled").checked = meta.pet_enabled;
     $("petSetting").classList.toggle("hidden", meta.platform !== "Windows");

@@ -40,10 +40,11 @@ window.addEventListener("error", function (e) {
       <a href="#/devices" data-page="devices">设备与配对<span id="dot-devices" class="nav-dot hidden"></span></a>
       <a href="#/folders" data-page="folders">同步项目<span id="dot-folders" class="nav-dot hidden"></span></a>
       <a href="#/events" data-page="events">动态</a>
+      <a href="#/feedback" data-page="feedback">遇到问题反馈</a>
       <a href="#/about" data-page="about">关于</a>
     </nav>
     <div class="side-foot">
-      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.2</span>
+      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.3</span>
     </div>
   </aside>
 
@@ -225,11 +226,7 @@ window.addEventListener("error", function (e) {
             <figure><img src="https://lyzbcy.github.io/weshoto-study/img/reward-qr.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>请作者喝杯咖啡</figcaption></figure>
             <figure><img src="https://lyzbcy.github.io/weshoto-study/img/qq-group.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>加入 QQ 群</figcaption></figure>
           </div>
-          <div class="fb">
-            <label>想夸我 / 骂我 / 提需求？直接写：</label>
-            <textarea id="inFeedback" rows="3" placeholder="写下问题或建议；未配置直达渠道时会复制内容，方便你提交"></textarea>
-            <div class="row"><button id="btnFeedback" class="btn primary small" type="button">发送反馈</button><span id="fbMsg" class="form-msg"></span></div>
-          </div>
+          <a class="btn small" href="#/feedback">遇到问题反馈</a>
           <div class="about-more">
             <div class="row ver-row">
               <button id="btnCheckUpdate" class="btn small" type="button">检查更新</button>
@@ -241,6 +238,22 @@ window.addEventListener("error", function (e) {
           </div>
           <img class="about-sticker" src="/assets/stickers/第11弹-谢谢.png" alt="谢谢">
         </div>
+      </div>
+    </section>
+    <section id="page-feedback" class="page hidden">
+      <h1>遇到问题反馈</h1>
+      <div class="card form">
+        <p>软件版本会自动附上。写清你做了什么、看到什么现象，更容易帮你定位。</p>
+        <label for="feedbackCategory">问题方向（可不选）</label>
+        <select id="feedbackCategory"><option>未分类</option><option>连接与配对</option><option>已有项目识别</option><option>文件同步</option><option>桌面小鱼</option><option>安装与更新</option><option>建议与评价</option><option>其他</option></select>
+        <label for="inFeedback">备注或建议</label>
+        <textarea id="inFeedback" rows="5" maxlength="4000" placeholder="例如：已有 Tailscale，打开后旧项目没有出现；原来使用的同步工具是……"></textarea>
+        <label class="check-line small"><input id="feedbackLogs" type="checkbox" checked>附带诊断日志，帮助定位问题</label>
+        <p class="mut small">不读取同步文件内容或配置密钥；日志发送前会隐藏令牌、设备号码、常见路径与网络地址。自由文字可能仍包含个人信息，请预览后决定，也可取消勾选。</p>
+        <details><summary id="previewFeedbackLogs">预览将附带的诊断日志</summary><pre id="feedbackLogPreview" class="small">展开后读取</pre></details>
+        <p id="feedbackChannel" class="mut small">正在检查反馈接收渠道…</p>
+        <div class="row"><button id="btnFeedback" class="btn primary" type="button" disabled>提交反馈</button><button id="btnCopyFeedback" class="btn" type="button">复制反馈与诊断</button></div>
+        <p id="fbMsg" role="status" aria-live="polite"></p>
       </div>
     </section>
   </main>

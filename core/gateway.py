@@ -19,6 +19,7 @@ import config
 import version
 import wizard
 import updater
+import feedback
 from wizard import WizardError
 
 MIME = {
@@ -96,6 +97,8 @@ def make_handler(mgr):
                 self._err(f"服务内部错误：{exc}", 500)
 
         def do_POST(self):
+            if urllib.parse.urlparse(self.path).path == '/api/feedback':
+                return self._post()
             # Serialize configuration mutations; Syncthing remains the source of truth.
             with wizard.MUTATION_LOCK:
                 self._post()
@@ -160,12 +163,7 @@ def make_handler(mgr):
             if path == '/api/update/status':
                 return self._json(updater.status())
             if path == '/api/diagnostics':
-                logpath = config.LOG_DIR / 'syncsprite.log'
-                text = logpath.read_text(encoding='utf-8', errors='replace')[-32000:] if logpath.exists() else ''
-                text = text.replace(config.get('token'), '[hidden]')
-                if mgr.client.key:
-                    text = text.replace(mgr.client.key, '[hidden]')
-                return self._json({'text': 'Laoyu Sync ' + version.__version__ + '\n' + text})
+                return self._json({'text': feedback.diagnostics(mgr.client.key)})
             if path == "/api/status":
                 return self._json(mgr.status())
             if path == "/api/events":
@@ -201,22 +199,9 @@ def make_handler(mgr):
             return self._err("未知接口", 404)
 
         def route_feedback(self, body):
-            text = (body.get("text") or "").strip()
-            if not text:
-                return self._err("反馈内容不能为空")
-            url = config.get("feedback_url")
-            if not url:
-                return self._json({"ok": False, "reason": "not_configured"})
-            payload = json.dumps({
-                "text": text, "version": version.__version__,
-                "platform": __import__("platform").system(),
-            }).encode("utf-8")
-            req = urllib.request.Request(url, data=payload, headers={
-                "Content-Type": "application/json", "User-Agent": "SyncSprite-feedback"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                resp.read()
-            activity.user("收到一条用户反馈，已转发")
-            return self._json({"ok": True})
+            result = feedback.submit(body, mgr.client.key)
+            activity.user('反馈接收方已确认送达')
+            return self._json(result)
 
         # ---------- 静态与二维码
 
