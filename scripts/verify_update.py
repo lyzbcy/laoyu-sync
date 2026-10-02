@@ -25,10 +25,10 @@ def wait_for(predicate, seconds=90):
         time.sleep(.5)
     raise TimeoutError('fixture timeout')
 
-def scenario(bundle, fault=False):
+def scenario(bundle, fault=False, old_bundle=None):
     root = Path(tempfile.mkdtemp(prefix='upgrade-fault-' if fault else 'upgrade-ok-', dir=Path('verification').resolve()))
     target = root / 'installed'
-    shutil.copytree(bundle, target)
+    shutil.copytree(old_bundle or bundle, target)
     data = root / 'data'
     data.mkdir()
     (data / 'user-marker.txt').write_text('保留用户数据', encoding='utf-8')
@@ -46,10 +46,10 @@ def scenario(bundle, fault=False):
     stage = root / '.laoyu-update-fixture'
     stage.mkdir()
     shutil.copytree(bundle, stage / 'new')
-    shutil.copytree(bundle, stage / 'helper')
+    shutil.copytree(old_bundle or bundle, stage / 'helper')
     if fault:
         (stage / 'new/_internal/ui/app.js').write_text('throw new Error("isolated rollback fixture");', encoding='utf-8')
-    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':__version__,'data':str(data),'stage':str(stage)}
+    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':__version__,'previous_version':('0.3.3' if old_bundle else __version__),'data':str(data),'stage':str(stage)}
     (stage / 'transaction.json').write_text(json.dumps(payload), encoding='utf-8')
     helper = subprocess.Popen([str(stage / 'helper/LaoyuSync.exe'),'--apply-update',str(stage / 'transaction.json')], env=env, creationflags=0x08000000)
     windows = windows_for(old.pid)
@@ -81,7 +81,7 @@ def scenario(bundle, fault=False):
     for pid in main_pids:
         for hwnd in windows_for(pid):
             ctypes.windll.user32.PostMessageW(wintypes.HWND(hwnd),0x10,0,0)
-    result = {'ok':True,'fault_injected':fault,'same_version_fixture':True,'outcome':outcome,'identity_preserved':True,'user_data_preserved':True,'visible_main_window':True}
+    result = {'ok':True,'fault_injected':fault,'same_version_fixture':old_bundle is None,'outcome':outcome,'identity_preserved':True,'user_data_preserved':True,'visible_main_window':True}
     (root / 'verification-result.json').write_text(json.dumps(result,ensure_ascii=False,indent=2), encoding='utf-8')
     return result
 

@@ -35,6 +35,12 @@ def background_init(mgr):
     """网关先起、页面先亮，耗时的引擎拉起与更新检查放后台（日志系统规范：让用户立刻看到界面与状态提示）。"""
     threading.Thread(target=mgr.ensure_running, daemon=True).start()
     threading.Thread(target=version.check, daemon=True).start()
+    from update_cleanup import cleanup_finished
+    def cleanup_worker():
+        while True:
+            cleanup_finished()
+            time.sleep(120)
+    threading.Thread(target=cleanup_worker, daemon=True).start()
 
 
 class Bridge:
