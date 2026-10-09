@@ -1,7 +1,7 @@
 {
-  "version": "0.3.4",
-  "notes": "修复历史更新失败误报；确认事务结束及进程退出后安全清理暂存，保留配置、设备身份和历史凭据",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.4/laoyu-sync-0.3.4-win-x64.zip",
-  "sha256": "d27059368cde88999961f9449aebad8b92d6e1cb0a2da3a7e6a7c04547545d54",
-  "sizeBytes": 47536341
+  "version": "0.3.5",
+  "notes": "修复长期热身：内置引擎随完整包更新；启动失败显示原因并可重试，诊断保留关键日志",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.5/laoyu-sync-0.3.5-win-x64.zip",
+  "sha256": "43fb7daa4f34465cdef7d59399b01ca7c041afcd51f6dc4c1c793aa3263e803d",
+  "sizeBytes": 47543239
 }
