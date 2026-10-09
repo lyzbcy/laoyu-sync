@@ -1,7 +1,7 @@
 {
-  "version": "0.3.5",
-  "notes": "修复长期热身：内置引擎随完整包更新；启动失败显示原因并可重试，诊断保留关键日志",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.5/laoyu-sync-0.3.5-win-x64.zip",
-  "sha256": "43fb7daa4f34465cdef7d59399b01ca7c041afcd51f6dc4c1c793aa3263e803d",
-  "sizeBytes": 47543239
+  "version": "0.3.6",
+  "notes": "修复现有引擎403 CSRF访问凭据识别；唯一的本机凭据与设备证书匹配后沿用原项目，不改密钥或设备身份",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.6/laoyu-sync-0.3.6-win-x64.zip",
+  "sha256": "d2f144477eaaa2e18a561c9dcf8e2c95bb6d577bbeb110d0f82e03a4d27d2c05",
+  "sizeBytes": 47545600
 }
