@@ -16,9 +16,7 @@ import version
 CATEGORIES = ('未分类', '连接与配对', '已有项目识别', '文件同步', '桌面小鱼', '安装与更新', '建议与评价', '其他')
 
 
-def diagnostics(engine_key=''):
-    path = config.LOG_DIR / 'syncsprite.log'
-    text = path.read_bytes()[-24000:].decode('utf-8', errors='replace') if path.is_file() else ''
+def _redact(text, engine_key=''):
     for value in (config.get('token'), engine_key, config.get('feedback_url')):
         if value:
             text = text.replace(value, '[已隐藏]')
@@ -27,10 +25,42 @@ def diagnostics(engine_key=''):
     text = re.sub(r'\b(?:\d{1,3}\.){3}\d{1,3}\b', '[网络地址]', text)
     text = re.sub(r'[A-Za-z]:[\\/][^\r\n"<>]+', '[本机路径]', text)
     text = re.sub(r'/(?:Users|home)/[^\r\n"<>]+', '[本机路径]', text)
-    return 'Laoyu Sync ' + version.__version__ + '\n' + text
+    return text
 
 
-def payload(body, engine_key=''):
+def _log_tail(path, limit=96000):
+    try:
+        if not path.is_file():
+            return ''
+        with path.open('rb') as stream:
+            stream.seek(max(0, path.stat().st_size - limit))
+            return stream.read(limit).decode('utf-8', errors='replace')
+    except OSError:
+        return '[日志轮转或暂不可读取]'
+
+
+def diagnostics(engine_key='', engine_state=None):
+    import activity
+    sections = ['Laoyu Sync ' + version.__version__]
+    if engine_state:
+        selected = {key: engine_state.get(key) for key in ('phase', 'error_code', 'elapsed_seconds', 'message')}
+        sections.append('Engine startup: ' + json.dumps(selected, ensure_ascii=False))
+    events = activity.since(0)[-30:]
+    if events:
+        sections.append('Recent events:\n' + '\n'.join(event['level'] + ': ' + event['text'] for event in events))
+    logs = []
+    for suffix in ('.2', '.1', ''):
+        text = _log_tail(config.LOG_DIR / ('syncsprite.log' + suffix))
+        logs.extend(line for line in text.splitlines() if line.strip() and 'syncsprite http ' not in line)
+    sections.append('Application logs:\n' + '\n'.join(logs)[-16000:])
+    engine = _log_tail(config.LOG_DIR / 'syncthing.log', 32000)
+    warnings = [line for line in engine.splitlines() if re.search(r'(?i)\b(warning|warn|error|fatal|panic)\b', line)]
+    if warnings:
+        sections.append('Engine warnings:\n' + '\n'.join(warnings)[-6000:])
+    return _redact('\n\n'.join(sections), engine_key)
+
+
+def payload(body, engine_key='', engine_state=None):
     text = str(body.get('text') or '').strip()
     if not text or len(text) > 4000:
         raise ValueError('请填写反馈备注（最多4000字）')
@@ -45,7 +75,7 @@ def payload(body, engine_key=''):
     except ValueError:
         raise ValueError('反馈编号不正确') from None
     return {'product': 'laoyu-sync', 'request_id': request_id, 'version': version.__version__, 'platform': platform.system(),
-            'category': category, 'text': text, 'logs': diagnostics(engine_key) if include else None}
+            'category': category, 'text': text, 'logs': diagnostics(engine_key, engine_state) if include else None}
 
 
 _SEND_LOCK = threading.Lock()
@@ -102,8 +132,8 @@ def _messages(data):
     return [header + f'\n留言（{i+1}/{len(chunks)}）：\n' + text for i,text in enumerate(chunks)]
 
 
-def submit(body, engine_key=''):
-    data = payload(body, engine_key)
+def submit(body, engine_key='', engine_state=None):
+    data = payload(body, engine_key, engine_state)
     url = config.get('feedback_url')
     if not url:
         raise ValueError('企业微信反馈渠道尚未配置；内容已保留，没有发送')

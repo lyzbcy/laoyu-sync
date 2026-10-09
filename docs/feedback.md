@@ -13,3 +13,5 @@
 45项隔离测试通过，含取消日志/业务拒收/ZIP/部分失败续发/重复提交/中文长文/错误地址/脱敏。真实机器人上传日志+文字+附件三阶段均成功，verification/direct-feedback/real-wecom-result.json；测试日志为合成数据，没有发真实用户日志。官方协议依据：https://developer.work.weixin.qq.com/document/path/91770。
 
 最终Windows包渠道识别、渲染/引擎启动、可见窗口、小鱼开关、正常退出通过：verification/native-direct-033/result.json。独立页面回归：verification/direct-feedback-ui/web-regression.md。常规CI没有仓库外机器人配置，正式Windows资产使用本机已注入并验收的构建。
+
+0.3.5诊断补充当前引擎启动阶段/失败原因、30条近期事件、有界轮转应用日志及引擎警告；成功状态轮询不再挤出关键故障。此变更来自0.3.4真实反馈附件缺少启动证据，所有日志仍统一脱敏，不读取同步文件内容。

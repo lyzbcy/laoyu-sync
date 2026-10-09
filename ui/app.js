@@ -254,10 +254,12 @@ async function pollPending() {
 /* ---------------- 顶部状态胶囊 ---------------- */
 
 function stateOf(s) {
-  if (!s.syncthing.running && !s.syncthing.api_ok)
-    return { key: "grey", text: "小助手正在热身，几秒后自动开始", color: "var(--grey)" };
-  if (!s.syncthing.api_ok)
-    return { key: "grey", text: "小助手正在热身，几秒后自动开始", color: "var(--grey)" };
+  if (!s.syncthing.api_ok) {
+    const startup = s.syncthing.startup || {};
+    if (startup.phase === 'failed' || startup.elapsed_seconds >= 50)
+      return { key: 'red', text: '同步引擎未就绪，请查看原因并重试', color: 'var(--red)' };
+    return { key: 'grey', text: `正在启动同步引擎${startup.elapsed_seconds ? ` · 已等待 ${startup.elapsed_seconds} 秒` : ''}`, color: 'var(--grey)' };
+  }
   const fs = s.folders || [];
   if (!fs.length) return {key: "teal", text: s.setup?.title || "正在识别同步项目", color: "var(--teal)"};
   if (fs.some(f => f.state === "unavailable")) return {key: "red", text: "部分项目状态暂时无法读取", color: "var(--red)"};
@@ -414,6 +416,8 @@ function renderDash() {
   const s = LAST_STATUS;
   $("onboarding").classList.toggle("hidden", s.folders.length > 0);
   $("btnEngineStart").classList.toggle('hidden', s.syncthing.api_ok);
+  $("btnEngineStart").disabled = !s.syncthing.api_ok && ['starting', 'checking'].includes(s.syncthing.startup?.phase);
+  $("btnEngineStart").textContent = $("btnEngineStart").disabled ? '正在启动…' : '重试启动引擎';
   const st = stateOf(s);
   const pct = Math.min(100, s.total.pct);
   $("ringPct").textContent = s.syncthing.api_ok && s.folders.length && !s.folders.some(f => f.state === "unavailable") ? fmtPct(s.total.pct) : "—";
@@ -428,7 +432,7 @@ function renderDash() {
     : (s.syncthing.note || "");
   const off = s.devices.filter((d) => !d.self && !d.connected).length;
   $("heroNext").innerHTML = s.folders.length === 0
-    ? (s.setup?.key === 'checking' ? '' : `<a class="btn primary" href="${s.setup?.route || '#/devices'}">${s.setup?.key === 'receive' ? '接收已有项目' : '接入已有项目'}</a> <a class="btn" href="#/folders">选择新文件夹</a>`)
+    ? (['checking', 'engine_failed'].includes(s.setup?.key) ? '' : `<a class="btn primary" href="${s.setup?.route || '#/devices'}">${s.setup?.key === 'receive' ? '接收已有项目' : '接入已有项目'}</a> <a class="btn" href="#/folders">选择新文件夹</a>`)
     : (off ? `<span class="mut small">有电脑离线中，回来后文件会自动补齐</span>` : "");
   $("dashFolders").innerHTML = s.folders.map(folderCard).join("") ||
     `<div class="sticker-empty"><img src="/assets/stickers/第12弹-加油.png" alt="">${esc(s.setup?.detail || '正在读取同步项目，请稍候')}</div>`;

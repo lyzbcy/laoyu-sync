@@ -3,7 +3,9 @@ import sys
 import os
 from pathlib import Path
 root = Path(SPECPATH)
-datas = [(str(root/'ui'), 'ui'), (str(root/'engine'), 'engine'), (str(root/'assets'), 'assets'), (str(root/'licenses'), 'licenses'), (str(root/'THIRD_PARTY_NOTICES.md'), '.')]
+datas = [(str(root/'ui'), 'ui'), (str(root/'assets'), 'assets'), (str(root/'licenses'), 'licenses'), (str(root/'THIRD_PARTY_NOTICES.md'), '.')]
+for name in ['syncthing.exe' if sys.platform == 'win32' else 'syncthing', 'LICENSE.txt', 'AUTHORS.txt', 'UPSTREAM.txt']:
+    datas.append((str(root/'engine'/name), 'engine'))
 if os.environ.get('LAOYU_FEEDBACK_CONFIG_PATH'):
     feedback_config = Path(os.environ['LAOYU_FEEDBACK_CONFIG_PATH']).resolve()
     if feedback_config.name != 'feedback-channel.json' or not feedback_config.is_file():
@@ -19,4 +21,4 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='LaoyuSync', debug=Fal
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='LaoyuSync')
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='LaoyuSync.app', icon=str(root/'assets/app.icns'), bundle_identifier='studio.laoyu.sync',
-                 info_plist={'CFBundleShortVersionString':'0.3.4','NSHighResolutionCapable':True})
+                 info_plist={'CFBundleShortVersionString':'0.3.5','NSHighResolutionCapable':True})

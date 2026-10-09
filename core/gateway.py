@@ -39,6 +39,9 @@ def make_handler(mgr):
 
         def log_message(self, fmt, *args):  # 访问日志进开发日志（日志系统规范）
             text = re.sub(r'([?&](?:t|token)=)[^&\s"]+', r'\1[hidden]', fmt % args)
+            # Successful polling used to erase all meaningful startup evidence from log tails.
+            if re.search(r'"GET /api/(?:status|events|pending|version|update/status)(?:[? ][^"\n]*)? HTTP/1\.[01]" 200', text):
+                return
             activity.dev("http %s %s", self.address_string(), text)
 
         # ---------- 工具
@@ -163,7 +166,7 @@ def make_handler(mgr):
             if path == '/api/update/status':
                 return self._json(updater.status())
             if path == '/api/diagnostics':
-                return self._json({'text': feedback.diagnostics(mgr.client.key)})
+                return self._json({'text': feedback.diagnostics(mgr.client.key, mgr.startup_status())})
             if path == "/api/status":
                 return self._json(mgr.status())
             if path == "/api/events":
@@ -199,7 +202,7 @@ def make_handler(mgr):
             return self._err("未知接口", 404)
 
         def route_feedback(self, body):
-            result = feedback.submit(body, mgr.client.key)
+            result = feedback.submit(body, mgr.client.key, mgr.startup_status())
             activity.user('反馈接收方已确认送达')
             return self._json(result)
 

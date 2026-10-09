@@ -49,7 +49,7 @@ def scenario(bundle, fault=False, old_bundle=None):
     shutil.copytree(old_bundle or bundle, stage / 'helper')
     if fault:
         (stage / 'new/_internal/ui/app.js').write_text('throw new Error("isolated rollback fixture");', encoding='utf-8')
-    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':__version__,'previous_version':('0.3.3' if old_bundle else __version__),'data':str(data),'stage':str(stage)}
+    payload = {'pid':old.pid, 'target':str(target),'replacement':str(stage / 'new'),'version':__version__,'previous_version':json.loads(old_ack.read_text(encoding='utf-8'))['version'],'data':str(data),'stage':str(stage)}
     (stage / 'transaction.json').write_text(json.dumps(payload), encoding='utf-8')
     helper = subprocess.Popen([str(stage / 'helper/LaoyuSync.exe'),'--apply-update',str(stage / 'transaction.json')], env=env, creationflags=0x08000000)
     windows = windows_for(old.pid)

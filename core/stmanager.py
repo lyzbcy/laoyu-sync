@@ -181,6 +181,48 @@ def process_running():
         return False
 
 
+def selected_engine_running(home):
+    """True/False/None for this configuration, never use a foreign process as readiness."""
+    if _owned_process is not None and _owned_process.poll() is None:
+        return True
+    try:
+        if platform.system() == 'Windows':
+            query = "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding; $ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='syncthing.exe'\" | Select-Object -ExpandProperty CommandLine) | ConvertTo-Json -Compress"
+            result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query],
+                capture_output=True, timeout=5, creationflags=0x08000000)
+            if result.returncode:
+                return None
+            lines = json.loads(result.stdout.decode('utf-8-sig') or '[]')
+            lines = [lines] if isinstance(lines, str) else lines
+        else:
+            result = subprocess.run(['ps', '-axo', 'comm=,args='], capture_output=True, text=True, timeout=5)
+            if result.returncode:
+                return None
+            lines = [line for line in result.stdout.splitlines() if 'syncthing' in line.split(' ', 1)[0]]
+        if not isinstance(lines, list):
+            return None
+        unknown = False
+        for command in lines:
+            if not isinstance(command, str) or not command:
+                unknown = True
+                continue
+            match = re.search(r'(?:^|\s)"--?(?:home|config)=([^"]+)"|(?:^|\s)--?(?:home|config)(?:=|\s+)(?:"([^"]+)"|([^\s"]+))', command)
+            if match:
+                candidate = Path(next(v for v in match.groups() if v)).expanduser()
+                if not candidate.is_absolute():
+                    unknown = True
+                elif candidate.resolve() == Path(home).resolve():
+                    return True
+            elif Path(home).resolve() in [p.resolve() for p in config_candidates()]:
+                # A no-flag engine may use any standard home: do not start a duplicate.
+                return True
+            elif not (os.environ.get('LAOYU_ST_HOME') and os.environ.get('LAOYU_ST_GUI')):
+                unknown = True
+        return None if unknown else False
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+
+
 def launch():
     global _owned_process
     exe = find_syncthing_exe()
@@ -194,7 +236,7 @@ def launch():
     logfile.parent.mkdir(parents=True, exist_ok=True)
     try:
         engine_home().mkdir(parents=True, exist_ok=True)
-        command = [exe, "serve", "--no-browser", f"--home={engine_home()}", f"--logfile={logfile}"]
+        command = [exe, "serve", "--no-browser", "--no-upgrade", f"--home={engine_home()}", f"--logfile={logfile}"]
         if os.environ.get('LAOYU_ST_GUI'):
             command.append('--gui-address=' + os.environ['LAOYU_ST_GUI'])
         _owned_process = subprocess.Popen(
@@ -212,6 +254,7 @@ class STClient:
     def __init__(self):
         self.base, self.key = read_gui_config()
         self.last_headers = {}
+        self.last_error = ''
 
     def ready(self):
         return bool(self.key)
@@ -251,9 +294,21 @@ class STClient:
     def api_ok(self, timeout=3):
         try:
             self.base, self.key = read_gui_config()
+            if not self.key:
+                self.last_error = 'config_missing'
+                return False
             self.get("/rest/system/status", timeout=timeout)
+            self.last_error = ''
             return True
-        except Exception:
+        except Exception as exc:
+            cause = exc.__cause__ if isinstance(exc.__cause__, urllib.error.HTTPError) else exc
+            import ssl
+            if isinstance(cause, urllib.error.HTTPError) and cause.code in (401, 403):
+                self.last_error = 'unauthorized'
+            elif isinstance(cause, ssl.SSLError) or (isinstance(cause, urllib.error.URLError) and isinstance(cause.reason, ssl.SSLError)):
+                self.last_error = 'tls'
+            else:
+                self.last_error = 'unreachable'
             return False
 
 
@@ -263,6 +318,8 @@ class STManager:
         self.network = NetworkMonitor()
         self._existing_config = (engine_home() / 'config.xml').is_file()
         self._ensure_lock = threading.Lock()
+        self._startup = {'phase': 'checking', 'started': time.monotonic(), 'message': '正在读取同步引擎配置', 'error_code': ''}
+        self._startup_lock = threading.Lock()
         self._speed_lock = threading.Lock()
         self._last_total = None  # (ts, inBytes, outBytes)
         self._rates = {"in": 0.0, "out": 0.0}
@@ -273,28 +330,75 @@ class STManager:
         if not self._ensure_lock.acquire(blocking=False):
             return False
         try:
-            return self._ensure_running(wait_seconds)
+            try:
+                return self._ensure_running(wait_seconds)
+            except Exception:
+                return self._startup_failure('launch_failed')
         finally:
             self._ensure_lock.release()
 
-    def _ensure_running(self, wait_seconds=45):
-        """确保 Syncthing 在跑且 API 就绪；返回是否就绪。"""
-        if self.client.api_ok():
-            return True
-        if os.environ.get('LAOYU_ST_HOME') or not process_running():
-            activity.user("同步引擎（Syncthing）没有运行，正在自动启动…")
-            if not launch():
-                return False
-        else:
-            activity.user("同步引擎已在运行，等待接口就绪…")
-        deadline = time.time() + wait_seconds
-        while time.time() < deadline:
-            if self.client.api_ok():
-                activity.user("同步引擎已就绪")
-                return True
-            time.sleep(1)
-        activity.user("同步引擎启动超时，可点击「重试启动引擎」再试", "warn")
+    def _startup_update(self, phase, message, error_code=''):
+        if not hasattr(self, '_startup_lock'):
+            self._startup_lock = threading.Lock()
+        with self._startup_lock:
+            started = time.monotonic() if phase in ('starting', 'checking') else getattr(self, '_startup', {}).get('started', time.monotonic())
+            self._startup = dict(phase=phase, message=message, error_code=error_code, started=started)
+        if phase == 'failed':
+            activity.error('engine startup failed code=%s: %s', error_code, message)
+
+    def startup_status(self):
+        state = dict(getattr(self, '_startup', dict(phase='checking', started=time.monotonic(), message='正在读取同步引擎配置', error_code='')))
+        state['elapsed_seconds'] = max(0, int(time.monotonic() - state.pop('started')))
+        if state['phase'] in ('checking', 'starting') and state['elapsed_seconds'] >= 50:
+            self._startup_update('failed', '同步引擎启动超时。可重试启动；若仍失败，请提交诊断日志。', 'timeout')
+            return self.startup_status()
+        return state
+
+    def _startup_failure(self, code):
+        messages = {
+            'missing_engine': '安装包缺少同步引擎，请从发布页重新安装完整包。',
+            'launch_failed': '同步引擎未能启动，请检查安装目录权限或安全软件拦截，再重试。',
+            'engine_exited': '同步引擎启动后退出，请查看诊断日志并重试；配置和设备身份已保留。',
+            'unauthorized': '同步引擎拒绝访问。请打开原同步工具核对当前配置，再重新接入；不会重置设备身份。',
+            'tls': '同步引擎的本机 HTTPS 证书未通过验证，请检查原工具的 GUI 设置。',
+            'unknown_process': '无法确认当前同步引擎的进程位置，请打开原同步工具后重试接入。',
+            'timeout': '同步引擎启动超时。请重试；若仍失败，请提交诊断日志。',
+            'unavailable': '同步引擎连接中断，请重试接入并查看诊断日志。',
+        }
+        self._startup_update('failed', messages.get(code, messages['timeout']), code)
+        activity.user(self._startup['message'], 'warn')
         return False
+
+    def _ensure_running(self, wait_seconds=45):
+        self._startup_update('starting', '正在启动并核实同步引擎')
+        if self.client.api_ok():
+            self._startup_update('ready', '同步引擎已就绪')
+            return True
+        if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls'):
+            return self._startup_failure(self.client.last_error)
+        running = selected_engine_running(engine_home())
+        if running is False:
+            activity.user('当前配置的同步引擎没有运行，正在自动启动…')
+            if not find_syncthing_exe():
+                return self._startup_failure('missing_engine')
+            if not launch():
+                return self._startup_failure('launch_failed')
+        elif running is None:
+            return self._startup_failure('unknown_process')
+        else:
+            activity.user('当前同步引擎已在运行，等待接口就绪…')
+        deadline = time.monotonic() + wait_seconds
+        while time.monotonic() < deadline:
+            if _owned_process is not None and _owned_process.poll() is not None:
+                return self._startup_failure('engine_exited')
+            if self.client.api_ok():
+                activity.user('同步引擎已就绪')
+                self._startup_update('ready', '同步引擎已就绪')
+                return True
+            if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls'):
+                return self._startup_failure(self.client.last_error)
+            time.sleep(.5)
+        return self._startup_failure('timeout')
 
     # ---------- 状态聚合
 
@@ -311,19 +415,26 @@ class STManager:
         snap['discovery'] = {'home': str(home), 'config_found': (home / 'config.xml').is_file(),
                              'other_projects': any(p != home and configured_folders(p) for p in config_candidates())
                              if not os.environ.get('LAOYU_ST_HOME') else False}
+        snap['syncthing']['startup'] = self.startup_status()
         self.client.base, self.client.key = read_gui_config()
         if not self.client.ready():
-            snap["syncthing"].update({"running": False, "note": "未找到 Syncthing 配置"})
+            snap["syncthing"].update({"running": False, "note": snap["syncthing"]["startup"]["message"] if snap["syncthing"]["startup"]["phase"] == "failed" else "正在等待同步引擎生成配置"})
             snap['setup'] = setup_summary(snap)
             return snap
         try:
             st = self.client.get("/rest/system/status")
         except Exception:
             # 只有 API 不可达时才查进程（tasklist 很慢且会弹控制台，不能每 2 秒调）
-            snap["syncthing"]["running"] = process_running()
-            snap["syncthing"]["note"] = "接口未就绪（可能正在启动）"
+            snap["syncthing"]["running"] = selected_engine_running(home) is True
+            if snap['syncthing']['startup']['phase'] == 'ready':
+                self._startup_failure('unavailable')
+            snap['syncthing']['startup'] = self.startup_status()
+            snap["syncthing"]["note"] = snap['syncthing']['startup']['message']
             snap['setup'] = setup_summary(snap)
             return snap
+        if snap['syncthing']['startup']['phase'] != 'ready':
+            self._startup_update('ready', '同步引擎已就绪')
+        snap['syncthing']['startup'] = self.startup_status()
         snap["syncthing"].update({
             "api_ok": True, "uptime": st.get("uptime", 0),
             # v2 的 /rest/system/status 没有 version 字段，从响应头拿

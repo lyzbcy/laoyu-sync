@@ -3,6 +3,10 @@
 
 def setup_summary(snap):
     if not snap['syncthing'].get('api_ok'):
+        startup = snap['syncthing'].get('startup', {})
+        if startup.get('phase') == 'failed':
+            return {'key': 'engine_failed', 'title': '同步引擎需要处理',
+                    'detail': startup.get('message') or snap['syncthing'].get('note'), 'route': '#/dash'}
         return {'key': 'checking', 'title': '正在读取同步项目',
                 'detail': snap['syncthing'].get('note') or '正在连接本机同步引擎，请稍候', 'route': '#/dash'}
     if snap.get('folders'):

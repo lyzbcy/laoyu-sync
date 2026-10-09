@@ -753,6 +753,8 @@ def poll_once():
 
 _original_aggregate = aggregate
 def aggregate(snap):
+    if not snap.get('api_ok') and snap.get('syncthing', {}).get('startup', {}).get('phase') == 'failed':
+        return 'error', '引擎未就绪', '双击查看原因并重试', 0, 0
     if snap.get('api_ok'):
         if not snap.get('folders'):
             key = snap.get('setup', {}).get('key')
