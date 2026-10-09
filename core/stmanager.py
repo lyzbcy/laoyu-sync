@@ -5,6 +5,10 @@ GUI 地址与 API key 每次启动时从 Syncthing 自身配置读取（Windows:
 永远不写死、不另存同步配置（SKILL.md 铁律 2）。
 """
 import json
+import base64
+import hashlib
+import ipaddress
+import ssl
 import os
 import platform
 import re
@@ -125,10 +129,10 @@ _SYNCTHING_EXE_CANDIDATES = {
 }
 
 
-def read_gui_config():
+def read_gui_config(home=None):
     """从 Syncthing 自身配置读 GUI 地址与 API key，返回 (base_url, api_key)。"""
     # GUI credentials, project config and engine home must belong to one identity.
-    candidates = [engine_home() / 'config.xml']
+    candidates = [(Path(home) if home is not None else engine_home()) / 'config.xml']
     for cfg in candidates:
         try:
             root = ET.parse(str(cfg)).getroot()
@@ -143,6 +147,43 @@ def read_gui_config():
         except Exception:
             continue
     return "http://127.0.0.1:8384", ""
+
+
+def loopback_api(base):
+    try:
+        url = urllib.parse.urlsplit(base)
+        if url.scheme not in ('http', 'https') or url.username or url.password:
+            return False
+        return url.hostname == 'localhost' or ipaddress.ip_address(url.hostname).is_loopback
+    except (ValueError, TypeError):
+        return False
+
+
+class NoApiRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def api_open(request, timeout):
+    # Local credentials must never go through a system HTTP proxy or a redirect.
+    handlers = [NoApiRedirect()]
+    if loopback_api(request.full_url):
+        handlers.append(urllib.request.ProxyHandler({}))
+    return urllib.request.build_opener(*handlers).open(request, timeout=timeout)
+
+
+def config_certificate_matches(home, device_id):
+    """Validate the public certificate hash, without reading any private key."""
+    try:
+        if not DEVICE_ID_RE.fullmatch(str(device_id)):
+            return False
+        cert = ssl.PEM_cert_to_DER_cert((Path(home) / 'cert.pem').read_text(encoding='ascii'))
+        digest = base64.b32encode(hashlib.sha256(cert).digest()).decode('ascii').rstrip('=')
+        compact = device_id.replace('-', '')
+        without_checks = ''.join(compact[i:i + 13] for i in range(0, 56, 14))
+        return digest == without_checks
+    except (OSError, ValueError, UnicodeError):
+        return False
 
 
 def normalize_device_id(raw):
@@ -255,6 +296,8 @@ class STClient:
         self.base, self.key = read_gui_config()
         self.last_headers = {}
         self.last_error = ''
+        self._recovery_at = -1000.0
+        self.recovery_note = ''
 
     def ready(self):
         return bool(self.key)
@@ -267,7 +310,7 @@ class STClient:
             method=method,
         )
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with api_open(req, timeout=timeout) as resp:
                 self.last_headers = dict(resp.headers)
                 raw = resp.read().decode("utf-8")
                 return json.loads(raw) if raw.strip() else {}
@@ -291,6 +334,42 @@ class STClient:
     def delete(self, path):
         return self._call("DELETE", path)
 
+    def recover_local_config(self):
+        global _detected_home
+        if (os.environ.get('LAOYU_ST_HOME') or (_owned_process is not None and _owned_process.poll() is None)):
+            return False
+        if time.monotonic() - self._recovery_at < 30:
+            return False
+        self._recovery_at = time.monotonic()
+        authoritative_home = running_config_home()
+        candidates = [authoritative_home] if authoritative_home is not None else config_candidates()
+        matches = []
+        for home in dict.fromkeys(candidates):
+            if not (home / 'config.xml').is_file() or not (home / 'cert.pem').is_file():
+                continue
+            base, key = read_gui_config(home)
+            if not key or not loopback_api(base):
+                continue
+            request = urllib.request.Request(base + '/rest/system/status', headers={'X-API-Key': key})
+            try:
+                with api_open(request, timeout=1) as response:
+                    status = json.loads(response.read(65537))
+                if not isinstance(status, dict) or not config_certificate_matches(home, status.get('myID')):
+                    continue
+                matches.append((home, base, key))
+            except (OSError, ValueError):
+                continue
+        activity.dev('local config verification candidates=%s verified=%s', len(candidates), len(matches))
+        if len(matches) != 1:
+            self.recovery_note = 'ambiguous_config' if len(matches) > 1 else 'no_verified_config'
+            return False
+        home, self.base, self.key = matches[0]
+        _detected_home = home
+        self.last_error = ''
+        self.recovery_note = 'verified_existing_config'
+        activity.user('已核实运行引擎的访问凭据与设备证书，沿用已有同步配置')
+        return True
+
     def api_ok(self, timeout=3):
         try:
             self.base, self.key = read_gui_config()
@@ -305,6 +384,10 @@ class STClient:
             import ssl
             if isinstance(cause, urllib.error.HTTPError) and cause.code in (401, 403):
                 self.last_error = 'unauthorized'
+                if self.recover_local_config():
+                    return True
+                if self.recovery_note == 'ambiguous_config':
+                    self.last_error = 'ambiguous_config'
             elif isinstance(cause, ssl.SSLError) or (isinstance(cause, urllib.error.URLError) and isinstance(cause.reason, ssl.SSLError)):
                 self.last_error = 'tls'
             else:
@@ -360,6 +443,7 @@ class STManager:
             'launch_failed': '同步引擎未能启动，请检查安装目录权限或安全软件拦截，再重试。',
             'engine_exited': '同步引擎启动后退出，请查看诊断日志并重试；配置和设备身份已保留。',
             'unauthorized': '同步引擎拒绝访问。请打开原同步工具核对当前配置，再重新接入；不会重置设备身份。',
+            'ambiguous_config': '发现多份可用同步配置，无法唯一确认原有身份。请先打开要接入的原同步工具，再重试。',
             'tls': '同步引擎的本机 HTTPS 证书未通过验证，请检查原工具的 GUI 设置。',
             'unknown_process': '无法确认当前同步引擎的进程位置，请打开原同步工具后重试接入。',
             'timeout': '同步引擎启动超时。请重试；若仍失败，请提交诊断日志。',
@@ -374,7 +458,7 @@ class STManager:
         if self.client.api_ok():
             self._startup_update('ready', '同步引擎已就绪')
             return True
-        if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls'):
+        if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls', 'ambiguous_config'):
             return self._startup_failure(self.client.last_error)
         running = selected_engine_running(engine_home())
         if running is False:
@@ -395,7 +479,7 @@ class STManager:
                 activity.user('同步引擎已就绪')
                 self._startup_update('ready', '同步引擎已就绪')
                 return True
-            if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls'):
+            if getattr(self.client, 'last_error', '') in ('unauthorized', 'tls', 'ambiguous_config'):
                 return self._startup_failure(self.client.last_error)
             time.sleep(.5)
         return self._startup_failure('timeout')
