@@ -28,6 +28,7 @@ import config  # noqa: E402
 import gateway  # noqa: E402
 import version  # noqa: E402
 import updater
+from exit_signals import install_exit_signals  # noqa: E402
 from stmanager import STManager, stop_owned  # noqa: E402
 
 
@@ -118,6 +119,9 @@ def main():
         return
     if args.console:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+
+    # SIGTERM/SIGINT 统一转 KeyboardInterrupt，保证退出清理（server.shutdown+stop_owned）执行
+    install_exit_signals()
 
     cfg = config.load()
     if platform.system() == 'Windows':

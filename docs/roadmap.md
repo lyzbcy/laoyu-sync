@@ -1,3 +1,9 @@
+## 2026-10-15 Mac 实机验收与退出清理修复（0.3.7 开发）
+
+CI 0.3.3 macOS arm64 包（run 36809010572，commit 60bf481，SHA-256 已固化）在 Apple M5 / macOS 26.6.2 首次实机隔离验收：功能 13 项通过（启动/前端/内置引擎/gateway 鉴权/全部核心 API/项目暂停恢复移除/设备增删/中文错误提示），真实引擎与 gongxiang-win 配置全程未动。发现 2 项 blocking：SIGTERM 退出后自启引擎残留（MAC-QUIT-1）、后台启动继承 SIG_IGN 导致 SIGINT 不触发清理（MAC-QUIT-2），证据 verification/native-mac/result.json。
+
+0.3.7 修复：新增 core/exit_signals.py，SIGTERM/SIGINT 统一转 KeyboardInterrupt 走既有 except 分支（server.shutdown+stop_owned），覆盖 SIG_IGN 继承场景，非主线程安全跳过；tests/test_exit_signals.py 4 项新增单测通过，全套 85 项（Mac 环境既有 4 项路径断言失败与本修复无关）。源码级 SIGTERM 优雅退出通过；打包包复测与 GUI 窗口关闭路径复测进行中，未以源码结果宣称已发布。
+
 ## 2026-10-09 11:10 新反馈：0.3.5本机API拒绝访问
 
 新真实附件3c1da025已读到明确unauthorized/403 CSRF Error。现有0.3.5说明了失败，但尚未自动核实旧配置与运行实例的访问凭据对应关系。0.3.6开发增加已知本机目录的只读凭据+公开设备证书匹配，唯一通过才接入，不关闭认证/修改密钥/换身份或扫远端。81项隔离测试通过，包含HTTP403→唯一配置→原有项目读回与XML/证书/私钥文件不变、重复匹配拒绝、权威自定义目录、代理/重定向保护。真实当前电脑证书匹配算法只读验证通过；反馈电脑新包效果仍需回执，不能据单个模拟推断所有授权失败根因。最终EXE的HTTP403恢复与原项目/配置/公开证书/私钥文件不变见verification/frozen-csrf-036/result.json；原生可见窗口、引擎、小鱼、反馈渠道和退出见verification/native-036/result.json。发布资产与清单在核验后切换0.3.6。
