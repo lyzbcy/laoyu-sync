@@ -11,6 +11,7 @@ import ctypes
 import json
 import math
 import os
+import platform
 import queue
 import socket
 import subprocess
@@ -28,9 +29,10 @@ import tkinter as tk
 import config
 
 TRANS = "#010203"          # 透明色（小精灵不会用到这个颜色）
-FONT = ("Microsoft YaHei UI", 9)
-FONT_B = ("Microsoft YaHei UI", 10, "bold")
-FONT_S = ("Microsoft YaHei UI", 8)
+_FONT_NAME = "PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei UI"
+FONT = (_FONT_NAME, 9)
+FONT_B = (_FONT_NAME, 10, "bold")
+FONT_S = (_FONT_NAME, 8)
 
 AUTO_START_SYNCTHING = False  # 引擎由主程序统一管理
 POLL_SECONDS = 2
@@ -271,9 +273,34 @@ def aggregate(snap):
 
 # ---------------------------------------------------------------- 小精灵界面
 
+def configure_window(root, system=None):
+    """Tk on macOS has native alpha transparency, not Windows color-keying."""
+    system = system or platform.system()
+    if system == 'Darwin':
+        root.configure(bg='systemTransparent')
+        root.attributes('-transparent', True)
+        return 'systemTransparent'
+    root.attributes('-transparentcolor', TRANS)
+    return TRANS
+
+
+def close_pet():
+    """Persist the user's close action through the main process, not a stale cache."""
+    body = json.dumps({'pet_enabled': False}).encode('utf-8')
+    request = urllib.request.Request(_gateway() + '/api/settings', data=body,
+        headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            if response.status != 200:
+                raise RuntimeError('无法关闭小精灵')
+    except Exception as error:
+        log('pet close failed:', type(error).__name__)
+
+
 class PetApp:
     def __init__(self, root):
         self.root = root
+        root.title("捞鱼桌面小精灵")
         self.snapshot = None
         self.state_key = "starting"
         self.q = queue.Queue()
@@ -296,20 +323,23 @@ class PetApp:
         self.y = int(sh - h - 90 * self.S)
         root.geometry(f"{w}x{h}+{self.x}+{self.y}")
         root.overrideredirect(True)
-        root.attributes("-transparentcolor", TRANS)
+        background = configure_window(root)
         root.attributes("-topmost", True)
         root.after(400, self._ensure_position)
 
-        self.canvas = tk.Canvas(root, width=w, height=h, bg=TRANS, highlightthickness=0)
+        self.canvas = tk.Canvas(root, width=w, height=h, bg=background, highlightthickness=0)
         self.canvas.pack()
         self._draw_static(w, h)
 
         self.panel = tk.Toplevel(root)
+        self.panel.title("同步详情")
         self.panel.overrideredirect(True)
         self.panel.attributes("-topmost", True)
         # 注意：overrideredirect 的 Toplevel 在 Windows 上 withdraw 后可能无法
         # 再 deiconify，所以隐藏方式是挪到屏幕外，窗口始终保持已映射状态。
         self.panel.geometry("+30000+30000")
+        if platform.system() == "Darwin":
+            self.panel.withdraw()
         self.panel_label = tk.Label(
             self.panel, text="", font=FONT, bg="#23232E", fg="#E8E8F0",
             justify=tk.LEFT, anchor="w", padx=16, pady=12, wraplength=int(300 * self.S),
@@ -326,13 +356,16 @@ class PetApp:
         self.menu.add_checkbutton(label="窗口置顶", variable=self.topmost,
                                   command=lambda: root.attributes("-topmost", self.topmost.get()))
         self.menu.add_separator()
-        self.menu.add_command(label="退出小精灵", command=root.destroy)
+        self.menu.add_command(label="关闭小精灵", command=lambda: threading.Thread(target=close_pet, daemon=True).start())
 
         self.canvas.bind("<ButtonPress-1>", self._on_press)
         self.canvas.bind("<B1-Motion>", self._on_drag)
         self.canvas.bind("<ButtonRelease-1>", self._on_release)
         self.canvas.bind("<Double-Button-1>", self._on_dbl)
         self.canvas.bind("<Button-3>", self._on_rmb)
+        if platform.system() == "Darwin":
+            self.canvas.bind("<Button-2>", self._on_rmb)
+            self.canvas.bind("<Control-Button-1>", self._on_rmb)
 
         threading.Thread(target=poll_worker, args=(self.q,), daemon=True).start()
         root.after(150, self._drain_queue)
@@ -349,6 +382,8 @@ class PetApp:
             return
         self.x, self.y = e.x_root - self._drag[0], e.y_root - self._drag[1]
         self.root.geometry(f"+{self.x}+{self.y}")
+        if platform.system() == 'Darwin':
+            self._move_mac_window()
         self._moved = True
         self._place_panel()
 
@@ -384,8 +419,12 @@ class PetApp:
         self.panel_visible = not self.panel_visible
         log("panel ->", self.panel_visible)
         if self.panel_visible:
+            if platform.system() == "Darwin":
+                self.panel.deiconify()
             self._update_panel_text()
             self._place_panel()
+        elif platform.system() == "Darwin":
+            self.panel.withdraw()
         else:
             self.panel.geometry("+30000+30000")
 
@@ -406,12 +445,27 @@ class PetApp:
     def _ensure_position(self):
         """overrideredirect 窗口偶发落位异常，校验并强制纠正到目标位置。"""
         self.root.update_idletasks()
+        if platform.system() == 'Darwin':
+            self._move_mac_window()
+            return
         rx, ry = self.root.winfo_rootx(), self.root.winfo_rooty()
         if abs(rx - self.x) > 2 or abs(ry - self.y) > 2:
-            ctypes.windll.user32.MoveWindow(
-                self.root.winfo_id(), self.x, self.y,
-                self.root.winfo_width(), self.root.winfo_height(), True)
+            if platform.system() == 'Windows':
+                ctypes.windll.user32.MoveWindow(
+                    self.root.winfo_id(), self.x, self.y,
+                    self.root.winfo_width(), self.root.winfo_height(), True)
+            else:
+                self.root.geometry(f"+{self.x}+{self.y}")
             self.root.after(300, self._ensure_position)
+
+    def _move_mac_window(self):
+        # Changing the Dock activation policy can invalidate Tk's cached position.
+        from AppKit import NSApplication, NSScreen
+        for window in NSApplication.sharedApplication().windows():
+            if window.title() == "捞鱼桌面小精灵":
+                height = NSScreen.mainScreen().frame().size.height
+                window.setFrameOrigin_((self.x, height - self.y - window.frame().size.height))
+                break
 
     def _draw_static(self, w, h):
         c = self.canvas
@@ -731,6 +785,13 @@ def main():
 
     root.report_callback_exception = on_ui_error
     PetApp(root)
+    if platform.system() == 'Darwin':
+        from AppKit import NSApplication, NSApplicationActivationPolicyAccessory
+        NSApplication.sharedApplication().setActivationPolicy_(NSApplicationActivationPolicyAccessory)
+    root.update_idletasks()
+    marker = os.environ.get('LAOYU_PET_READY')
+    if marker:
+        Path(marker).write_text('ready', encoding='utf-8')
     root.mainloop()
 
 

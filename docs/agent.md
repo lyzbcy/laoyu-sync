@@ -1,6 +1,6 @@
 # 开发导航
 
-现状：正式版0.3.6；启动状态及本机访问凭据/证书识别修复已发布，验收见roadmap。负责人：捞鱼工作室。最后更新：2026-10-09。
+现状：正式版0.3.8，源码候选0.3.9新增Mac小精灵；启动状态及本机访问凭据/证书识别修复已发布，验收见roadmap。负责人：捞鱼工作室。最后更新：2026-10-15。
 
 先读 roadmap.md，开发前查对应模块。
 
@@ -21,3 +21,5 @@
 禁止回归操作真实用户同步项目。用户数据目录LaoyuSync，测试放verification/或临时目录，不提交密钥和config。
 
 启动器入口 E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md；launcher-adapter.json。版本core/version.py；最终包生成dist/version.json，确认公开下载后才替换根version.json，源码提交不提前指向不存在的包。
+
+Mac 小精灵：core/pet_control.py 负责就绪握手/并发/关闭态；pet.py 按平台透明与定位，右键关闭经 gateway 持久化。设置锁将启动读取与用户开关串行；退出绑定 closing 和 finally，兼容 Cmd-Q。构建要求 Tcl/Tk 8.6，见 packaging.md。

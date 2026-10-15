@@ -157,26 +157,29 @@ def main():
         config.set('first_used', time.time())
     background_init(mgr)
 
-    pet_process = None
-    def toggle_pet(enabled):
-        nonlocal pet_process
-        if enabled and platform.system() == 'Windows' and not args.headless:
-            if pet_process is None or pet_process.poll() is not None:
-                cmd = [sys.executable, '--pet'] if getattr(sys, 'frozen', False) else [sys.executable, str(Path(__file__).resolve()), '--pet']
-                env = dict(os.environ, LAOYU_SYNC_PORT=str(port))
-                pet_process = subprocess.Popen(cmd, env=env, creationflags=0x08000000)
-        elif pet_process and pet_process.poll() is None:
-            pet_process.terminate()
-            pet_process.wait(timeout=5)
-            pet_process = None
-    gateway.PET_CALLBACK = toggle_pet
+    from pet_control import PetController
+    pet_controller = PetController(port, headless=args.headless)
+    gateway.PET_CALLBACK = pet_controller.set_enabled
+    gateway.PET_SUPPORTED = pet_controller.supported
+    cleanup_lock = threading.Lock()
+    cleaned_up = False
+    def cleanup():
+        nonlocal cleaned_up
+        with cleanup_lock:
+            if cleaned_up:
+                return
+            pet_controller.close()
+            server.shutdown()
+            stop_owned()
+            cleaned_up = True
     if args.headless:
         try:
             while True:
                 time.sleep(1)
         except KeyboardInterrupt:
-            server.shutdown()
-            stop_owned()
+            pass
+        finally:
+            cleanup()
         return
 
     try:
@@ -186,10 +189,16 @@ def main():
         activity.user("未安装 pywebview，改用默认浏览器打开管理界面")
         webbrowser.open(url)
         try:
+            try:
+                gateway.start_pet_from_settings()
+            except Exception as error:
+                activity.error('desktop pet startup failed: %s', error)
             while True:
                 time.sleep(3600)
         except KeyboardInterrupt:
             pass
+        finally:
+            cleanup()
         return
 
     window = webview.create_window(
@@ -199,15 +208,20 @@ def main():
     )
     activity.user("捞鱼同步小助手已启动")
     def loaded():
-        toggle_pet(config.get('pet_enabled'))
+        def start_pet():
+            try:
+                gateway.start_pet_from_settings()
+            except Exception as error:
+                activity.error('desktop pet startup failed: %s', error)
+        threading.Thread(target=start_pet, daemon=True).start()
     window.events.loaded += loaded
+    # Cocoa Cmd-Q can terminate without returning from webview.start().
+    window.events.closing += cleanup
     updater.EXIT_CALLBACK = window.destroy
     try:
         webview.start()
     finally:
-        toggle_pet(False)
-        server.shutdown()
-        stop_owned()
+        cleanup()
 
 
 if __name__ == "__main__":

@@ -815,7 +815,7 @@ async function loadMeta() {
     $("feedbackChannel").textContent = FEEDBACK_CONFIGURED ? '留言和勾选的日志附件直接发送至作者的企业微信群，不经过捞鱼服务器；企业微信确认接收后才显示成功。' : '企业微信反馈渠道尚未配置，目前不能直达开发者；可先复制反馈与诊断。';
     HAS_PICKER = !!meta.has_window_picker;
     $("petEnabled").checked = meta.pet_enabled;
-    $("petSetting").classList.toggle("hidden", meta.platform !== "Windows");
+    $("petSetting").classList.toggle("hidden", !meta.pet_supported);
     $("expertLink").dataset.external = meta.engine_url;
     if (meta.review_due) showReview();
   } catch (e) { /* ignore */ }
@@ -831,7 +831,14 @@ function boot() {
   loadVersion();
 }
 
-$("petEnabled").onchange = async e => { try { await api("POST", "/api/settings", {pet_enabled: e.target.checked}); } catch(err) { e.target.checked = !e.target.checked; toast(friendly(err)); } };
+$("petEnabled").onchange = async e => {
+  const control = e.target, enabled = control.checked;
+  control.disabled = true;
+  try { await api("POST", "/api/settings", {pet_enabled: enabled}); }
+  catch(err) { control.checked = !enabled; toast(friendly(err)); }
+  finally { control.disabled = false; }
+};
+window.addEventListener('focus', loadMeta);
 $("btnLogs").onclick = async () => { try { const d = await api("GET", "/api/diagnostics"); if (await copyText(d.text)) toast("诊断日志已复制；可能包含路径和设备名称，请检查后再分享"); else infoModal("请手动复制诊断日志", `<p>自动复制失败，请选中下面内容复制；分享前检查路径和设备名称。</p><textarea rows="12" style="width:100%">${esc(d.text)}</textarea>`); } catch(e) { toast(friendly(e)); } };
 $("btnEngineStart").onclick = async () => { try { await api("POST", "/api/engine/start"); toast("正在尝试启动引擎，请查看动态"); } catch(e) { toast(friendly(e)); } };
 async function showReview() {

@@ -31,6 +31,35 @@ MIME = {
 # pywebview 窗口就绪后由 app.py 置 True，前端据此显示“浏览…”按钮
 PICKER_AVAILABLE = False
 PET_CALLBACK = None
+PET_SUPPORTED = False
+
+
+_pet_settings_lock = threading.RLock()
+
+
+def start_pet_from_settings():
+    with _pet_settings_lock:
+        if PET_CALLBACK:
+            PET_CALLBACK(bool(config.get('pet_enabled')))
+
+
+def set_pet_enabled(enabled):
+    if not isinstance(enabled, bool):
+        raise WizardError('小精灵开关必须是开启或关闭')
+    with _pet_settings_lock:
+        previous = bool(config.get('pet_enabled'))
+        if PET_CALLBACK:
+            PET_CALLBACK(enabled)
+        try:
+            config.set('pet_enabled', enabled)
+        except Exception:
+            # config.set updates its cache before writing; restore both cache and process.
+            try:
+                config.set('pet_enabled', previous)
+            finally:
+                if PET_CALLBACK:
+                    PET_CALLBACK(previous)
+            raise
 
 
 def make_handler(mgr):
@@ -121,9 +150,7 @@ def make_handler(mgr):
                     return self._json(updater.start())
                 if path == '/api/settings':
                     if 'pet_enabled' in body:
-                        config.set('pet_enabled', bool(body['pet_enabled']))
-                        if PET_CALLBACK:
-                            PET_CALLBACK(bool(body['pet_enabled']))
+                        set_pet_enabled(body['pet_enabled'])
                     if body.get('dismiss_review'):
                         config.set('review_dismissed_at', time.time())
                     return self._json({'ok': True})
@@ -190,6 +217,7 @@ def make_handler(mgr):
                     "has_window_picker": PICKER_AVAILABLE,
                     "feedback_url_configured": bool(config.get("feedback_url")),
                     "pet_enabled": bool(config.get('pet_enabled')),
+                    "pet_supported": PET_SUPPORTED,
                     "platform": __import__('platform').system(),
                     "engine_url": mgr.client.base,
                     "review_due": config.get('launch_count') >= 5 and time.time() - float(config.get('first_used') or time.time()) > 7 * 86400 and time.time() - float(config.get('review_dismissed_at') or 0) > 15 * 86400,

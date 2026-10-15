@@ -3,6 +3,12 @@ import sys
 import os
 from pathlib import Path
 root = Path(SPECPATH)
+sys.path.insert(0, str(root/'core'))
+from version import __version__
+if sys.platform == 'darwin':
+    import _tkinter
+    if _tkinter.TK_VERSION != '8.6':
+        raise RuntimeError('Mac desktop pet requires verified Tcl/Tk 8.6; Tk 9 renders an opaque background. See docs/packaging.md.')
 datas = [(str(root/'ui'), 'ui'), (str(root/'assets'), 'assets'), (str(root/'licenses'), 'licenses'), (str(root/'THIRD_PARTY_NOTICES.md'), '.')]
 for name in ['syncthing.exe' if sys.platform == 'win32' else 'syncthing', 'LICENSE.txt', 'AUTHORS.txt', 'UPSTREAM.txt']:
     datas.append((str(root/'engine'/name), 'engine'))
@@ -21,4 +27,4 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name='LaoyuSync', debug=Fal
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name='LaoyuSync')
 if sys.platform == 'darwin':
     app = BUNDLE(coll, name='LaoyuSync.app', icon=str(root/'assets/app.icns'), bundle_identifier='studio.laoyu.sync',
-                 info_plist={'CFBundleShortVersionString':'0.3.6','NSHighResolutionCapable':True})
+                 info_plist={'CFBundleShortVersionString':__version__,'CFBundleVersion':__version__,'NSHighResolutionCapable':True})
