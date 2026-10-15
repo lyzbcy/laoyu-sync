@@ -113,6 +113,8 @@ def main():
     if args.apply_update:
         updater.apply_update(args.apply_update)
         return
+    # 安装目录不能作为长期 CWD：探测子进程会继承并占住目录，阻断更新改名
+    config.relocate_cwd()
     if args.pet:
         from pet import run
         run()

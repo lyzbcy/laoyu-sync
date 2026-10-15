@@ -123,6 +123,13 @@ def start():
     threading.Thread(target=_download, args=(info,), daemon=True).start()
     return {'ok': True}
 
+def spawn_update_helper(helper_dir, payload_file):
+    """Helper 显式以暂存目录为 CWD：继承安装目录会在其存活期间占住待改名的
+    目录（实机 WinError 32，verification/win-037）。"""
+    return subprocess.Popen([str(Path(helper_dir) / 'LaoyuSync.exe'), '--apply-update', str(payload_file)],
+                            cwd=str(Path(helper_dir).parent), creationflags=0x08000000)
+
+
 def _download(info):
     import tempfile
     stage = None
@@ -166,7 +173,7 @@ def _download(info):
         previous_result = config.DATA_DIR / 'update-result.json'
         if previous_result.is_file():
             archive_result('new-update-attempt')
-        subprocess.Popen([str(helper_dir / 'LaoyuSync.exe'), '--apply-update', str(payload_file)], creationflags=0x08000000)
+        spawn_update_helper(helper_dir, payload_file)
         helper_started = True
         progress('restarting', 100, '下载完成，正在重启新版')
         activity.user('更新包校验通过，正在重启')
@@ -234,7 +241,15 @@ def apply_update(payload_file):
         for uninstaller in target.glob('unins*'):
             if uninstaller.is_file():
                 shutil.copy2(uninstaller, replacement / uninstaller.name)
-        target.rename(backup)
+        # 旧实例残留的探测子进程可能仍短暂占用安装目录，改名前重试等待其退出
+        for attempt in range(20):
+            try:
+                target.rename(backup)
+                break
+            except OSError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.5)
         try:
             replacement.rename(target)
         except Exception:

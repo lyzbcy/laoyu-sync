@@ -1,3 +1,9 @@
+## 2026-10-15 Windows 实机升级验收与更新占用修复（0.3.8 开发）
+
+0.3.7 发布后 Windows 真实升级验收（本机 0.3.6 中心管理便携副本，经产品自身 /api/update/start 触发）：下载校验全部通过，但旧实例退出后备份改名 5/5 必现 [WinError 32] 事务回滚，旧版自愈重启、数据无损。取证（verification/win-037）：stmanager 引擎探测每约 2 秒孵化 powershell 子进程并继承安装目录为 CWD，单个存活约 2 秒，目录被近乎连续占用；helper 只等待旧主进程 PID，孤儿探测进程在改名瞬间持有目录。handle64 快照与探针实验（EXE+CWD 同目录 → 改名 WinError 32）固定证据链。
+
+0.3.8 修复：config.relocate_cwd() 启动即迁离安装目录（app.main 调用）；两个 powershell 探测显式 cwd=数据目录；updater.spawn_update_helper 以暂存目录为 CWD；apply_update 备份改名最多重试 10 秒。tests/test_cwd_relocation.py 3 项 + test_update_transaction.py 2 项先行红后绿。0.3.6/0.3.7 既有安装自更新到 0.3.8 仍会命中旧 helper 单次改名，预期失败后回滚保平安，需发布页 setup 或软件中心重装一次进入可自更新状态。
+
 ## 2026-10-15 Mac 实机验收与退出清理修复（0.3.7 开发）
 
 CI 0.3.3 macOS arm64 包（run 36809010572，commit 60bf481，SHA-256 已固化）在 Apple M5 / macOS 26.6.2 首次实机隔离验收：功能 13 项通过（启动/前端/内置引擎/gateway 鉴权/全部核心 API/项目暂停恢复移除/设备增删/中文错误提示），真实引擎与 gongxiang-win 配置全程未动。发现 2 项 blocking：SIGTERM 退出后自启引擎残留（MAC-QUIT-1）、后台启动继承 SIG_IGN 导致 SIGINT 不触发清理（MAC-QUIT-2），证据 verification/native-mac/result.json。

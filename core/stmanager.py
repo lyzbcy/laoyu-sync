@@ -34,7 +34,8 @@ def running_config_home():
         if platform.system() == 'Windows':
             query = "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding; Get-CimInstance Win32_Process -Filter \"Name='syncthing.exe'\" | Select-Object -ExpandProperty CommandLine | ConvertTo-Json -Compress"
             result = subprocess.run(['powershell.exe', '-NoProfile', '-Command', query],
-                                    capture_output=True, timeout=5, creationflags=0x08000000)
+                                    capture_output=True, timeout=5, creationflags=0x08000000,
+                                    cwd=str(config.DATA_DIR))
             lines = json.loads(result.stdout.decode('utf-8-sig') or '[]')
             if isinstance(lines, str):
                 lines = [lines]
@@ -230,7 +231,7 @@ def selected_engine_running(home):
         if platform.system() == 'Windows':
             query = "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding; $ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='syncthing.exe'\" | Select-Object -ExpandProperty CommandLine) | ConvertTo-Json -Compress"
             result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', query],
-                capture_output=True, timeout=5, creationflags=0x08000000)
+                capture_output=True, timeout=5, creationflags=0x08000000, cwd=str(config.DATA_DIR))
             if result.returncode:
                 return None
             lines = json.loads(result.stdout.decode('utf-8-sig') or '[]')

@@ -119,4 +119,34 @@ class Transactions(unittest.TestCase):
             self.assertEqual(len(attempts),3)
             self.assertEqual((target/'LaoyuSync.exe').read_bytes(),b'old')
 
+    def test_backup_rename_retries_transient_lock(self):
+        """0.3.6 实机回归：旧实例残留的探测子进程短暂占用安装目录，
+        备份改名（target → *.previous-*）必须重试而不是立即回滚。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);target,stage,data,payload=self.fixture(root)
+            original=Path.rename;attempts=[]
+            def rename(path,destination):
+                if path==target and '.previous-' in Path(destination).name:
+                    attempts.append(1)
+                    if len(attempts)<3: raise PermissionError('模拟探测子进程占用安装目录')
+                return original(path,destination)
+            with patch.object(ctypes,'WinDLL',return_value=Kernel()),patch.object(updater.subprocess,'Popen',return_value=Child()),patch.object(updater.time,'sleep'),patch.object(Path,'rename',rename):
+                updater.apply_update(payload)
+            self.assertGreaterEqual(len(attempts),3)
+            self.assertEqual((target/'LaoyuSync.exe').read_bytes(),b'old')
+            self.assertEqual((stage/'failed-new/LaoyuSync.exe').read_bytes(),b'new')
+
+    def test_helper_is_spawned_with_cwd_outside_install_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);target,stage,data,payload=self.fixture(root)
+            helper=stage/'helper';helper.mkdir();(helper/'LaoyuSync.exe').write_bytes(b'helper')
+            launches=[]
+            def launch(args,**kwargs):
+                launches.append((args,kwargs));return Child()
+            with patch.object(updater.subprocess,'Popen',side_effect=launch):
+                updater.spawn_update_helper(helper,payload)
+            args,kwargs=launches[0]
+            self.assertTrue(str(args[0]).startswith(str(helper)))
+            self.assertEqual(Path(kwargs['cwd']),stage.resolve())
+
 if __name__=='__main__': unittest.main(verbosity=2)

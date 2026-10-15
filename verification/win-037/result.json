@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "product": "laoyu-sync",
+  "date": "2026-10-15",
+  "machine": "SY-202608111736 / Windows 10 19045 x64 / Administrator",
+  "environment": "0.3.6 中心管理便携副本（AppData\\Roaming\\laoyu-software-center\\apps\\laoyu-sync\\d2f144477eaaa2e1），引擎为任务计划程序自启的外部 syncthing（收养），E:\\共享 双机 sendreceive 同步",
+  "channel_integrity": {
+    "assets": ["laoyu-sync-0.3.7-win-x64.zip", "laoyu-sync-0.3.7-win-x64-setup.exe", "SHA256SUMS-037.txt"],
+    "download": "公网 Release URL 直下",
+    "sha256_match_sha256sums": true,
+    "sha256_match_github_digest": true,
+    "zip_sha256": "fa4af935b6c19006fbd549f84f3c70e84aa4edfef51d335e4988acefad928947",
+    "setup_sha256": "fb9a60977170c8ec572b56fad07454f1004d6d52346d5178d1e0bf053acb78d"
+  },
+  "self_update_036_to_037": {
+    "trigger": "运行实例本地 gateway POST /api/update/start（与 UI 一键更新等价），共 5 次",
+    "result": "5/5 失败回滚",
+    "failure": "helper 等待旧主进程退出后 target.rename(backup) 抛 [WinError 32]，事务回滚，旧版 0.3.6 自愈重启，数据与引擎无损",
+    "download_and_verify": "5/5 通过（SHA-256 校验、安全解压、MZ 头检查）"
+  },
+  "root_cause": {
+    "holder": "stmanager running_config_home()/selected_engine_running() 的 powershell 探测子进程",
+    "mechanism": "UI 状态轮询约每 2 秒孵化一次 powershell（Get-CimInstance Win32_Process 查 syncthing 命令行），继承应用 CWD=安装目录，单个存活约 1.8-2.0 秒，安装目录被近乎连续占用；helper 只等待旧主进程 PID，孤儿探测进程在改名瞬间持有目录",
+    "evidence": [
+      "handle64 快照：powershell.exe 持有安装目录句柄（4008X，CWD 特征），LaoyuSync 主进程/小鱼亦各持目录与 _internal 文件句柄",
+      "探针实验：子进程 EXE 与 CWD 同在目录内 → 目录改名 WinError 32；仅 EXE 在目录内或仅 CWD 在目录内 → 改名成功",
+      "进程观察：探测 powershell 由运行中主进程每约 2 秒孵化（连续捕获 25 个，ppid=主进程）",
+      "syncsprite.log 时间线：校验通过 → 旧主退出 → 约 2 秒内改名失败回执 → 回滚重启"
+    ],
+    "why_old_versions_updated_fine": "0.3.6 凭据恢复改动引入高频引擎探测轮询，0.3.5 及以前探测频率低，未构成连续占用"
+  },
+  "fix_038": {
+    "relocate_cwd": "config.relocate_cwd()，app.main 启动即把 CWD 迁到数据目录（治本：所有子进程不再继承安装目录）",
+    "probe_cwd": "两个 powershell 探测显式 cwd=数据目录",
+    "helper_cwd": "updater.spawn_update_helper 以暂存目录为 CWD",
+    "rename_retry": "apply_update 备份改名最多重试 20 次间隔 0.5 秒",
+    "tests": "tests/test_cwd_relocation.py 3 项 + tests/test_update_transaction.py 2 项，先行红后绿；全套 92 项通过",
+    "residual": "0.3.6/0.3.7 既有安装自更新仍运行旧 helper（单次改名），预期失败安全回滚；进入 0.3.8 需经发布页 setup 或软件中心重装一次"
+  },
+  "exit_and_engine": {
+    "adopted_engine_preserved": "任务计划程序引擎（svchost→syncthing 6112）全程未被停止，符合只停自有引擎设计",
+    "rollback_health": "5 次回滚后旧版均正常重启，同步功能无损"
+  },
+  "forensic_tools": ["forensic_update.py", "read_cwd.py", "watch-dir.ps1", "handle64 快照（Temp/laoyu-forensic.log）"]
+}

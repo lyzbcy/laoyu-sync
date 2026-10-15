@@ -89,3 +89,14 @@ def set(key, value):
     with _lock:
         _cache[key] = value
         _save(_cache)
+
+
+def relocate_cwd():
+    """启动即把进程 CWD 迁到数据目录：安装目录作 CWD 时，子进程（引擎探测
+    powershell 等）会继承并持续占用该目录，更新器的备份改名随之失败
+    （实机 WinError 32，verification/win-037）。失败时保持原目录不阻断启动。"""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        os.chdir(DATA_DIR)
+    except OSError:
+        pass
