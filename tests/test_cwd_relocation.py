@@ -41,7 +41,7 @@ class CwdRelocation(unittest.TestCase):
             with patch.object(config, 'DATA_DIR', missing):
                 config.relocate_cwd()
             self.assertTrue(missing.is_dir())
-            self.assertEqual(Path.cwd(), missing)
+            self.assertEqual(Path.cwd().resolve(), missing.resolve())
             os.chdir(self._previous_cwd)
 
     @unittest.skipUnless(sys.platform == 'win32', 'powershell 探针仅在 Windows 存在')
