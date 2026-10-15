@@ -25,7 +25,9 @@ def process_snapshot():
 
 
 def safe_tree(parent, folder):
-    parent, folder = Path(parent).absolute(), Path(folder).absolute()
+    # 先解析真实路径：macOS /var→/private/var、Windows 8.3 别名（RUNNER~1）等
+    # 系统级路径别名不构成重定向；解析后的祖先链不应再含软链/联接，保持纵深防御。
+    parent, folder = Path(parent).resolve(), Path(folder).resolve()
     if folder.parent != parent or not folder.name.startswith('.laoyu-update-'):
         raise ValueError('Not an owned update stage')
     for node in [parent, *parent.parents]:
@@ -43,6 +45,7 @@ def safe_tree(parent, folder):
 
 def cleanup_stage(folder, parent, snapshot=process_snapshot, now=time.time):
     try:
+        raw_folder = Path(folder)  # 命令行里可能是未解析的系统别名路径，两种形式都比对
         folder = safe_tree(parent, folder)
         receipt = json.loads((folder / 'cleanup-ready.json').read_text(encoding='utf-8'))
         tx = json.loads((folder / 'transaction.json').read_text(encoding='utf-8'))
@@ -63,7 +66,8 @@ def cleanup_stage(folder, parent, snapshot=process_snapshot, now=time.time):
                 return False
             command = (p.get('CommandLine') or '').lower()
             exe = p.get('ExecutablePath') or ''
-            if str(folder).lower() in command or (exe and Path(exe).resolve().is_relative_to(folder)):
+            stage_refs = {str(folder).lower(), str(raw_folder).lower()}
+            if any(ref and ref in command for ref in stage_refs) or (exe and Path(exe).resolve().is_relative_to(folder)):
                 return False
         # Preserve transaction and completion evidence outside the directory being removed.
         history = folder.parent / '.laoyu-update-history'

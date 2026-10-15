@@ -72,7 +72,7 @@ class Recovery(unittest.TestCase):
             client=stmanager.STClient();self.assertFalse(client.api_ok());self.assertEqual(client.last_error,'ambiguous_config');self.assertEqual(stmanager.engine_home(),self.old)
     def test_explicit_home_and_running_custom_home_remain_authoritative(self):
         with patch.dict(os.environ,{'LAOYU_ST_HOME':str(self.old)}):
-            client=stmanager.STClient();self.assertFalse(client.api_ok());self.assertEqual(stmanager.engine_home(),self.old)
+            client=stmanager.STClient();self.assertFalse(client.api_ok());self.assertEqual(stmanager.engine_home(),self.old.resolve())
         with patch('stmanager.running_config_home',return_value=self.old):
             client=stmanager.STClient();self.assertFalse(client.api_ok());self.assertEqual(stmanager.engine_home(),self.old)
     def test_newly_running_custom_home_supersedes_stale_implicit_cache(self):

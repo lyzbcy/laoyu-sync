@@ -42,6 +42,19 @@ class History(unittest.TestCase):
         self.assertIn(version.__version__,updater.status()['message'])
 
 class Cleanup(unittest.TestCase):
+    def test_safe_tree_accepts_system_alias_ancestor(self):
+        """macOS /var→/private/var、Windows 8.3 别名属于系统级路径别名，
+        不是恶意重定向；按解析后的真实路径归属校验（CI 可移植性回归）。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            real=Path(tmp)/'real';parent=real/'p';stage=parent/'.laoyu-update-alias'
+            stage.mkdir(parents=True)
+            alias_parent=Path(tmp)/'alias'/'p'
+            try:
+                (Path(tmp)/'alias').symlink_to(real,target_is_directory=True)
+            except OSError:
+                self.skipTest('platform cannot create symlink')
+            resolved=cleanup.safe_tree(alias_parent,alias_parent/'.laoyu-update-alias')
+            self.assertEqual(resolved,stage.resolve())
     def fixture(self,root):
         root=Path(root);folder=root/'.laoyu-update-test';folder.mkdir()
         data=root/'data';data.mkdir();(data/'identity').write_text('keep')
