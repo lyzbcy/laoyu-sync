@@ -4,6 +4,8 @@
 
 0.3.8 修复：config.relocate_cwd() 启动即迁离安装目录（app.main 调用）；两个 powershell 探测显式 cwd=数据目录；updater.spawn_update_helper 以暂存目录为 CWD；apply_update 备份改名最多重试 10 秒。tests/test_cwd_relocation.py 3 项 + test_update_transaction.py 2 项先行红后绿。0.3.6/0.3.7 既有安装自更新到 0.3.8 仍会命中旧 helper 单次改名，预期失败后回滚保平安，需发布页 setup 或软件中心重装一次进入可自更新状态。
 
+0.3.8 已发布并完成 Windows 实机验收（verification/win-037/result.json release_038 节）：v0.3.8 三资产 SHA 三方核验一致；中心管理副本目录交换升级与 setup.exe 实装（注册表 0.3.8/开始菜单/卸载登记）双路径验证；0.3.8 运行中 handle64 实证安装目录零 CWD 句柄；启动器适配 strict --installed 全过（真实识别注册表安装）；软件中心权威分支 e2943eb 登记 0.3.8，中心测试 211 过。0.3.8 起后续版本一键自更新恢复可用（待下个版本发布时实证端到端）。
+
 ## 2026-10-15 Mac 实机验收与退出清理修复（0.3.7 开发）
 
 CI 0.3.3 macOS arm64 包（run 36809010572，commit 60bf481，SHA-256 已固化）在 Apple M5 / macOS 26.6.2 首次实机隔离验收：功能 13 项通过（启动/前端/内置引擎/gateway 鉴权/全部核心 API/项目暂停恢复移除/设备增删/中文错误提示），真实引擎与 gongxiang-win 配置全程未动。发现 2 项 blocking：SIGTERM 退出后自启引擎残留（MAC-QUIT-1）、后台启动继承 SIG_IGN 导致 SIGINT 不触发清理（MAC-QUIT-2），证据 verification/native-mac/result.json。

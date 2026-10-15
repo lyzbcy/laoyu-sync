@@ -5,7 +5,11 @@
   "machine": "SY-202608111736 / Windows 10 19045 x64 / Administrator",
   "environment": "0.3.6 中心管理便携副本（AppData\\Roaming\\laoyu-software-center\\apps\\laoyu-sync\\d2f144477eaaa2e1），引擎为任务计划程序自启的外部 syncthing（收养），E:\\共享 双机 sendreceive 同步",
   "channel_integrity": {
-    "assets": ["laoyu-sync-0.3.7-win-x64.zip", "laoyu-sync-0.3.7-win-x64-setup.exe", "SHA256SUMS-037.txt"],
+    "assets": [
+      "laoyu-sync-0.3.7-win-x64.zip",
+      "laoyu-sync-0.3.7-win-x64-setup.exe",
+      "SHA256SUMS-037.txt"
+    ],
     "download": "公网 Release URL 直下",
     "sha256_match_sha256sums": true,
     "sha256_match_github_digest": true,
@@ -41,5 +45,30 @@
     "adopted_engine_preserved": "任务计划程序引擎（svchost→syncthing 6112）全程未被停止，符合只停自有引擎设计",
     "rollback_health": "5 次回滚后旧版均正常重启，同步功能无损"
   },
-  "forensic_tools": ["forensic_update.py", "read_cwd.py", "watch-dir.ps1", "handle64 快照（Temp/laoyu-forensic.log）"]
+  "forensic_tools": [
+    "forensic_update.py",
+    "read_cwd.py",
+    "watch-dir.ps1",
+    "handle64 快照（Temp/laoyu-forensic.log）"
+  ],
+  "release_038": {
+    "tag": "v0.3.8",
+    "commits": [
+      "7399b8d fix",
+      "15dfa5c mac test path",
+      "6ced297 manifest+adapter"
+    ],
+    "ci": "run 38694886984 windows+macos success, 92 tests (10 skipped on mac)",
+    "digests_match": "zip/setup/mac 与 SHA256SUMS-038.txt 及 GitHub 服务端 digest 三方一致",
+    "zip_sha256": "12e0c6ac5008b70622a5daa0dfffaefa48f53372e4daf3c77030fac5d42a974c",
+    "upgrade_paths_verified": {
+      "center_managed": "优雅关闭→目录交换（.previous-win038 备份）→启动 0.3.8：gateway 版本 0.3.8、引擎 8384 连接、小鱼运行",
+      "installer": "setup.exe /VERYSILENT 实装：注册表 DisplayVersion 0.3.8、InstallLocation/DisplayIcon、开始菜单组、unins000.exe 就绪（D:\\...\\Programs\\LaoyuSync，本机 LOCALAPPDATA 在 D 盘）",
+      "self_update_from_036": "预期仍失败安全回滚（旧 helper 单次改名），已在 Release 说明与目录文档中明示"
+    },
+    "fix_proof_in_production": "0.3.8 运行中 handle64 快照：安装目录无任何 CWD/目录句柄（仅运行中应用自身 DLL 映像，随进程退出释放，探针实验证明不阻塞改名）；应用/小鱼/探测 powershell 的 CWD 句柄全部位于数据目录",
+    "strict_adapter_check": "退出码 0 全过（含 --installed 真实识别 d:\\...\\LaoyuSync.exe 与权威分支 catalog 0.3.8 全量一致项），报告 verification/launcher-adapter-038-report.json",
+    "exit_retest_on_036": "WM_CLOSE→主进程与小鱼全部退出、网关端口释放、收养计划任务引擎保留；之后恢复运行",
+    "center_registration": "laoyu-software-center 权威分支 codex/skills-one-click-windows e2943eb：catalog 0.3.8 + 适配文档 + 权威目录路径更新，中心 node --test 211 过 0 挂"
+  }
 }
