@@ -1,7 +1,7 @@
 {
-  "version": "0.3.6",
-  "notes": "修复现有引擎403 CSRF访问凭据识别；唯一的本机凭据与设备证书匹配后沿用原项目，不改密钥或设备身份",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.6/laoyu-sync-0.3.6-win-x64.zip",
-  "sha256": "d2f144477eaaa2e18a561c9dcf8e2c95bb6d577bbeb110d0f82e03a4d27d2c05",
-  "sizeBytes": 47545600
+  "version": "0.3.7",
+  "notes": "修复 Mac/Linux 退出不停止自启引擎；修复 macOS 非 UTF-8 进程参数导致引擎拒绝启动；更新清理跨平台可移植性修复",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.7/laoyu-sync-0.3.7-win-x64.zip",
+  "sha256": "fa4af935b6c19006fbd549f84f3c70e84aa4edfef51d335e4988acefad928947",
+  "sizeBytes": 41897758
 }
