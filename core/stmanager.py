@@ -236,10 +236,13 @@ def selected_engine_running(home):
             lines = json.loads(result.stdout.decode('utf-8-sig') or '[]')
             lines = [lines] if isinstance(lines, str) else lines
         else:
-            result = subprocess.run(['ps', '-axo', 'comm=,args='], capture_output=True, text=True, timeout=5)
+            # 不用 text=True：个别进程参数含非 UTF-8 字节（旧中文应用 GBK 等），
+            # 严格解码会抛 UnicodeDecodeError 把无关进程误判为 unknown、拒绝启动隔离引擎。
+            result = subprocess.run(['ps', '-axo', 'comm=,args='], capture_output=True, timeout=5)
             if result.returncode:
                 return None
-            lines = [line for line in result.stdout.splitlines() if 'syncthing' in line.split(' ', 1)[0]]
+            ps_text = result.stdout.decode('utf-8', errors='replace')
+            lines = [line for line in ps_text.splitlines() if 'syncthing' in line.split(' ', 1)[0]]
         if not isinstance(lines, list):
             return None
         unknown = False

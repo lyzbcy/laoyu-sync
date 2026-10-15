@@ -81,6 +81,15 @@ class Matching(unittest.TestCase):
         child=Mock();child.poll.return_value=None
         with patch('stmanager._owned_process',child),patch('stmanager.subprocess.run') as run:
             self.assertTrue(stmanager.selected_engine_running(Path('/isolated')));run.assert_not_called()
+    def test_non_utf8_foreign_process_output_does_not_block_start(self):
+        """macOS ps 输出含非 UTF-8 进程参数（常见于旧中文应用 GBK 参数）时，
+        不得因解码失败把无关进程误判为 unknown 而拒绝启动隔离引擎。"""
+        with tempfile.TemporaryDirectory() as tmp:
+            raw='……无关进程……'.encode('gbk')+b'\nsyncthing-bogus\n'
+            result=subprocess.CompletedProcess([],0,raw,b'')
+            with patch('stmanager._owned_process',None),patch('stmanager.platform.system',return_value='Darwin'),patch('stmanager.subprocess.run',return_value=result):
+                with patch.dict(os.environ,{'LAOYU_ST_HOME':tmp,'LAOYU_ST_GUI':'127.0.0.1:36385'}):
+                    self.assertFalse(stmanager.selected_engine_running(Path(tmp)/'sel'))
 
 class DiagnosticEvidence(unittest.TestCase):
     def test_busy_polling_does_not_hide_failure_and_engine_secrets_are_redacted(self):
