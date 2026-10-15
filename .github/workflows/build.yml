@@ -49,7 +49,10 @@ jobs:
       - run: python scripts/make_icon.py
       - run: python scripts/prepare_resources.py
       - run: python -m PyInstaller --noconfirm LaoyuSync.spec
-      - run: ditto -c -k --sequesterRsrc --keepParent dist/LaoyuSync.app "dist/laoyu-sync-0.3.6-macos-$(uname -m).zip"
+      - name: Pack macOS zip (version follows core/version.py)
+        run: |
+          VER=$(python -c "import sys;sys.path.insert(0,'core');import version;print(version.__version__)")
+          ditto -c -k --sequesterRsrc --keepParent dist/LaoyuSync.app "dist/laoyu-sync-${VER}-macos-$(uname -m).zip"
       - uses: actions/upload-artifact@v4
         with:
           name: laoyu-sync-macos-unsigned
