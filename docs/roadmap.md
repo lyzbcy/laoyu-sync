@@ -1,3 +1,11 @@
+## 2026-10-16 0.3.9 正式发布
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.9 。最终源码 15c24b8261af6ae8bd0e86efcd2572936c2052f1；CI 38836703687 两端成功，Windows 112 项全过、Mac 102 项通过/10 项 Windows 专用跳过。最终原始 CI 包完成 Windows 原生主窗口/renderer+engine ACK/宠物开关与退出清理、Mac Apple Silicon 透明显示/关闭/重开/关闭后重启记忆/Cmd-Q 清理实机验证。未用源码测试代替包运行结论。
+
+发布前捕获并修复：Windows 就绪标记仍在写入时被父进程删除导致 WinError32，改临时文件写完关闭后原子发布，清理标记失败不覆盖启动结果；Mac 共享 bundle 身份的窗口恢复警告会阻塞子进程，启动前注册忽略旧窗口恢复；安装器手写版本遗漏，prepare_resources 同时从 core/version.py 生成 EXE/安装器版本，隔离回归固定防漏。
+
+Windows ZIP/安装器/Mac arm64 ZIP 及 SHA256SUMS-039.txt 四项公开；逐包公网完整回读 SHA-256 与本地原始字节、GitHub 服务端 digest 一致。安装器 ProductVersion 与文件名均为 0.3.9；本轮没有以元数据检查冒充真实安装。根 version.json 在公开回读后切换，launcher-adapter 同步真实 ZIP 哈希。Mac 未 Apple 公证，Windows 未代码签名；不发布未验证的 Intel Mac 包。证据在 verification/release-039，测试身份/令牌和配置不提交。
+
 ## 2026-10-15 Mac 桌面小精灵（0.3.9 本机候选）
 
 修复旧版仅 Windows 启动宠物、Mac 隐藏开关的问题。复用小蓝鱼和同一状态快照：关于页可开启/关闭并记住选择，右键关闭经主网关保存；就绪握手失败返回错误，不把未启动视为成功；并发开关串行，退出关闭态阻止迟到线程重新拉起。Mac 使用原生透明、中文字体、右键与原生落位纠正，详情面板使用 withdraw/deiconify。浏览器回退同样启动和清理宠物，宠物失败不停止主服务。Mac Cmd-Q 会跳过 webview 返回，故在同步 closing 事件与 finally 中执行幂等清理，只停止 owned 进程。

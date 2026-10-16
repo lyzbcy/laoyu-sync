@@ -1,7 +1,7 @@
 {
-  "version": "0.3.8",
-  "notes": "修复 Windows 一键更新实机失败回滚：启动即迁移工作目录到数据目录，引擎探测与更新子进程不再占用安装目录，备份改名增加重试。0.3.6/0.3.7 自更新到本版本会安全回滚，请从发布页或软件中心手动升级一次。",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.8/laoyu-sync-0.3.8-win-x64.zip",
-  "sha256": "12e0c6ac5008b70622a5daa0dfffaefa48f53372e4daf3c77030fac5d42a974c",
-  "sizeBytes": 41898311
+  "version": "0.3.9",
+  "notes": "Mac 新增桌面小精灵，可在关于页或右键菜单开启关闭并记住选择；修复启动回执竞态、旧窗口恢复提示与退出清理，保留原有同步项目和设备身份。Windows 安装器版本自动跟随程序版本。",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.9/laoyu-sync-0.3.9-win-x64.zip",
+  "sha256": "54a89bf5dc522fc223d66f4f75f27723667f702676f90326bc1ab7fb9a1d16a4",
+  "sizeBytes": 41906701
 }

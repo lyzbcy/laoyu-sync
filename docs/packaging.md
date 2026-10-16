@@ -19,3 +19,5 @@ Windows包尚无代码签名。Mac单独CI构建且引擎匹配runner架构；�
 Mac 构建必须使用已实机验证的 Tcl/Tk 8.6。当前独立运行时 Python 3.12.14 带 Tk 9.0.4，能创建窗口但透明画布变黑且原生边框异常；spec 主动拒绝此组合，避免构建成功后交付坏包。其他 Python 3.12 补丁版配 Tk 8.6 仍可使用，不以 Python 版本单独判断。本机用 Python 3.12.11 / Tcl/Tk 8.6、PyInstaller 6.16.0，构建时 TCL_LIBRARY/TK_LIBRARY 指向该运行时的 lib/tcl8.6 与 lib/tk8.6；冻结包中资源由 PyInstaller 收集，运行无需开发环境变量。
 
 完整候选在 verification/mac-pet-039/dist/LaoyuSync.app，版本元数据跟随 core/version.py。内置引擎来自本机已校验的正式 0.3.8 原包；不包含真实同步配置或身份。本次只做本机安装，不修改 version.json、GitHub Release 或软件中心的可信下载回执，不覆盖原不可变下载目录。候选为本地临时签名，未做开发者签名/公证。
+
+2026-10-16 正式发布 0.3.9，原始 CI 38836703687 的 Windows 安装/便携与 Mac arm64 ZIP 已逐包公开回读核验。安装器 #define AppVersion 由 prepare_resources.py 从 core/version.py 自动更新，避免人工多处改版本遗漏；缺失声明拒绝构建。Mac 和 Windows 包的宠物开关与正常退出均已验证。安装器本轮验证版本元数据，不宣称在用户电脑重新实装。详见 roadmap 最新发布记录。
