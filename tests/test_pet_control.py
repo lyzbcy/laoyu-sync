@@ -93,12 +93,12 @@ class PetLifecycleTests(unittest.TestCase):
         root.attributes.assert_any_call('-transparentcolor', pet.TRANS)
 
     def test_mac_setting_is_not_hidden(self):
-        ui = (Path(__file__).resolve().parents[1] / 'ui/app.js').read_text()
+        ui = (Path(__file__).resolve().parents[1] / 'ui/app.js').read_text(encoding='utf-8')
         self.assertNotIn('meta.platform !== "Windows"', ui)
         self.assertIn('pet_supported', ui)
 
     def test_packaged_version_tracks_source(self):
-        spec = (Path(__file__).resolve().parents[1] / 'LaoyuSync.spec').read_text()
+        spec = (Path(__file__).resolve().parents[1] / 'LaoyuSync.spec').read_text(encoding='utf-8')
         self.assertNotIn("'CFBundleShortVersionString':'0.3.6'", spec)
         self.assertIn('__version__', spec)
 

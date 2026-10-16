@@ -38,6 +38,7 @@ def main():
     parser.add_argument('--profile', default='verification/native-smoke')
     parser.add_argument('--port', type=int, default=20390)
     parser.add_argument('--gui', type=int, default=20384)
+    parser.add_argument('--allow-unconfigured-feedback', action='store_true', help='Explicitly verify packages that retain the existing unconfigured channel state')
     args = parser.parse_args()
     profile = Path(args.profile).resolve()
     profile.mkdir(parents=True, exist_ok=True)
@@ -67,11 +68,21 @@ def main():
         result['engine_ready'] = api('/api/status')['syncthing']['api_ok']
         assert result['engine_ready']
         result['feedback_url_configured'] = api('/api/meta')['feedback_url_configured']
-        assert result['feedback_url_configured'], 'packaged feedback channel missing'
+        if not args.allow_unconfigured_feedback:
+            assert result['feedback_url_configured'], 'packaged feedback channel missing'
+        def pet_children():
+            script = f"Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq {child.pid} -and $_.Name -eq 'LaoyuSync.exe' -and $_.CommandLine -match '--pet' }} | Select-Object -ExpandProperty ProcessId | ConvertTo-Json -Compress"
+            output = subprocess.check_output(['powershell', '-NoProfile', '-NonInteractive', '-Command', script], text=True, timeout=15).strip()
+            data = json.loads(output) if output else []
+            return data if isinstance(data, list) else [data]
         api('/api/settings', {'pet_enabled':False})
+        assert not pet_children(), 'pet remains after disabling'
         api('/api/settings', {'pet_enabled':True})
         time.sleep(1)
+        pet_pids = pet_children()
+        assert pet_pids, 'pet missing after enabling'
         result['pet_toggle'] = True
+        result['pet_child_pids'] = pet_pids
         try:
             from PIL import ImageGrab
             rect = wintypes.RECT()
@@ -87,6 +98,8 @@ def main():
         try:
             child.wait(timeout=20)
             result['clean_exit'] = True
+            assert not pet_children(), 'pet remains after main window closes'
+            result['pet_clean_exit'] = True
         except subprocess.TimeoutExpired:
             subprocess.run(['taskkill','/PID',str(child.pid),'/T','/F'], capture_output=True)
             result['clean_exit'] = False

@@ -20,6 +20,15 @@ jobs:
       - run: python scripts/make_icon.py
       - run: python scripts/prepare_resources.py
       - run: python -m PyInstaller --noconfirm LaoyuSync.spec
+      - name: Verify native Windows pet lifecycle
+        run: python scripts/verify_windows.py dist/LaoyuSync/LaoyuSync.exe --profile verification/ci-native --allow-unconfigured-feedback
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: laoyu-sync-windows-native-evidence
+          path: |
+            verification/ci-native/result.json
+            verification/ci-native/window.png
       - run: python scripts/package.py
       - name: Build installer
         shell: pwsh
