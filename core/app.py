@@ -102,6 +102,21 @@ class Bridge:
         return ""
 
 
+def configure_native_session():
+    if platform.system() != 'Darwin':
+        return
+    try:
+        from Foundation import NSUserDefaults
+    except ImportError:
+        return  # Source/headless use does not require the Cocoa GUI dependency.
+    # The optional pet is intentionally terminated on close. Its shared bundle
+    # identity must not ask the next process to restore stale native windows.
+    NSUserDefaults.standardUserDefaults().registerDefaults_({
+        'ApplePersistenceIgnoreState': True,
+        'NSQuitAlwaysKeepsWindows': False,
+    })
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--console", action="store_true", help="日志同时输出到控制台")
@@ -110,6 +125,7 @@ def main():
     parser.add_argument('--apply-update')
     parser.add_argument('--upgrade-ack')
     args = parser.parse_args()
+    configure_native_session()
     if args.apply_update:
         updater.apply_update(args.apply_update)
         return

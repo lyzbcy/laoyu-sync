@@ -187,3 +187,20 @@ class ReadyHandshakeTests(unittest.TestCase):
                 pet.write_ready_marker(ready)
             self.assertEqual(ready.read_text(encoding='utf-8'), 'ready')
             self.assertEqual(list(Path(directory).iterdir()), [ready])
+
+class MacSessionTests(unittest.TestCase):
+    def test_pet_and_main_do_not_restore_stale_native_windows(self):
+        import app
+        defaults = Mock()
+        foundation = Mock()
+        foundation.NSUserDefaults.standardUserDefaults.return_value = defaults
+        with patch.object(app.platform, 'system', return_value='Darwin'), patch.dict(sys.modules, {'Foundation': foundation}):
+            app.configure_native_session()
+        defaults.registerDefaults_.assert_called_once_with({'ApplePersistenceIgnoreState': True, 'NSQuitAlwaysKeepsWindows': False})
+
+    def test_windows_session_does_not_load_mac_frameworks(self):
+        import app
+        foundation = Mock()
+        with patch.object(app.platform, 'system', return_value='Windows'), patch.dict(sys.modules, {'Foundation': foundation}):
+            app.configure_native_session()
+        foundation.NSUserDefaults.standardUserDefaults.assert_not_called()
