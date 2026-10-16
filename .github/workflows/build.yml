@@ -29,6 +29,7 @@ jobs:
           path: |
             verification/ci-native/result.json
             verification/ci-native/window.png
+            verification/ci-native/data/logs/*.log
       - run: python scripts/package.py
       - name: Build installer
         shell: pwsh

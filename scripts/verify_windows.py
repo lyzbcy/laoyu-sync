@@ -48,10 +48,24 @@ def main():
     env = dict(os.environ, LAOYU_SYNC_DATA=str(profile / 'data'), LAOYU_ST_HOME=str(profile / 'engine'), LAOYU_ST_GUI=f'127.0.0.1:{args.gui}', LAOYU_SYNC_PORT=str(args.port))
     child = subprocess.Popen([str(Path(args.executable).resolve()), '--upgrade-ack', str(ack)], env=env)
     result = {'pid': child.pid}
+    def pet_children():
+        script = f"Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq {child.pid} -and $_.Name -eq 'LaoyuSync.exe' -and $_.CommandLine -match '--pet' }} | Select-Object -ExpandProperty ProcessId | ConvertTo-Json -Compress"
+        output = subprocess.check_output(['powershell', '-NoProfile', '-NonInteractive', '-Command', script], text=True, timeout=15).strip()
+        data = json.loads(output) if output else []
+        return data if isinstance(data, list) else [data]
     try:
         deadline = time.time() + 45
         while time.time() < deadline and not ack.exists() and child.poll() is None:
             time.sleep(.5)
+        if not ack.is_file():
+            result['health_error'] = 'renderer/engine health ACK missing'
+            result['process_exit_code'] = child.poll()
+            result['visible_windows'] = windows_for(child.pid)
+            try:
+                from PIL import ImageGrab
+                ImageGrab.grab().save(profile / 'window.png')
+            except Exception:
+                pass
         assert ack.is_file(), 'renderer/engine health ACK missing'
         result['ack'] = json.loads(ack.read_text(encoding='utf-8'))
         assert result['ack']['renderer_ready'] and result['ack']['engine_ready']
@@ -70,11 +84,6 @@ def main():
         result['feedback_url_configured'] = api('/api/meta')['feedback_url_configured']
         if not args.allow_unconfigured_feedback:
             assert result['feedback_url_configured'], 'packaged feedback channel missing'
-        def pet_children():
-            script = f"Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq {child.pid} -and $_.Name -eq 'LaoyuSync.exe' -and $_.CommandLine -match '--pet' }} | Select-Object -ExpandProperty ProcessId | ConvertTo-Json -Compress"
-            output = subprocess.check_output(['powershell', '-NoProfile', '-NonInteractive', '-Command', script], text=True, timeout=15).strip()
-            data = json.loads(output) if output else []
-            return data if isinstance(data, list) else [data]
         api('/api/settings', {'pet_enabled':False})
         assert not pet_children(), 'pet remains after disabling'
         api('/api/settings', {'pet_enabled':True})
