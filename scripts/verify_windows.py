@@ -46,8 +46,17 @@ def main():
     if ack.exists():
         ack.unlink()
     env = dict(os.environ, LAOYU_SYNC_DATA=str(profile / 'data'), LAOYU_ST_HOME=str(profile / 'engine'), LAOYU_ST_GUI=f'127.0.0.1:{args.gui}', LAOYU_SYNC_PORT=str(args.port))
+    # Hosted Windows runners can take over five seconds on their first WMI query.
+    # Warm only the read-only inventory provider before the product's bounded probe.
+    warm_started = time.monotonic()
+    warm = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+        "$ErrorActionPreference='Stop'; Get-CimInstance Win32_Process -Filter \"Name='syncthing.exe'\" | Measure-Object | Select-Object -ExpandProperty Count"],
+        capture_output=True, timeout=30, creationflags=0x08000000)
+    if warm.returncode:
+        raise RuntimeError('Read-only Windows process inventory is unavailable in this test session')
+    warm_seconds = round(time.monotonic() - warm_started, 3)
     child = subprocess.Popen([str(Path(args.executable).resolve()), '--upgrade-ack', str(ack)], env=env)
-    result = {'pid': child.pid}
+    result = {'pid': child.pid, 'inventory_warmup_seconds': warm_seconds}
     def pet_children():
         script = f"Get-CimInstance Win32_Process | Where-Object {{ $_.ParentProcessId -eq {child.pid} -and $_.Name -eq 'LaoyuSync.exe' -and $_.CommandLine -match '--pet' }} | Select-Object -ExpandProperty ProcessId | ConvertTo-Json -Compress"
         output = subprocess.check_output(['powershell', '-NoProfile', '-NonInteractive', '-Command', script], text=True, timeout=15).strip()
