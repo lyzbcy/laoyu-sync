@@ -770,6 +770,14 @@ def ensure_dpi_awareness():
             pass
 
 
+def write_ready_marker(marker):
+    marker = Path(marker)
+    temporary = marker.with_name(marker.name + '.tmp')
+    temporary.write_text('ready', encoding='utf-8')
+    # Publish only after write_text closed its Windows file handle.
+    os.replace(temporary, marker)
+
+
 def main():
     if not single_instance():
         sys.exit(0)
@@ -791,7 +799,7 @@ def main():
     root.update_idletasks()
     marker = os.environ.get('LAOYU_PET_READY')
     if marker:
-        Path(marker).write_text('ready', encoding='utf-8')
+        write_ready_marker(marker)
     root.mainloop()
 
 

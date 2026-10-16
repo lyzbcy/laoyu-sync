@@ -165,3 +165,25 @@ class MacWindowTests(unittest.TestCase):
         import json
         self.assertEqual(json.loads(request.call_args.args[0].data), {'pet_enabled': False})
         self.assertTrue(request.call_args.args[0].full_url.endswith('/api/settings'))
+
+class ReadyHandshakeTests(unittest.TestCase):
+    def test_ready_cleanup_failure_does_not_fail_a_successful_launch(self):
+        control, processes, _ = PetLifecycleTests().create()
+        with patch.object(pet_control.Path, 'unlink', side_effect=PermissionError('Windows scanner holds marker')):
+            control.set_enabled(True)
+        self.assertTrue(control.running)
+        control.close()
+
+    def test_ready_is_only_visible_after_the_write_handle_closes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            ready = Path(directory) / 'ready'
+            original_write = Path.write_text
+            def write(temporary, *args, **kwargs):
+                self.assertNotEqual(temporary, ready)
+                result = original_write(temporary, *args, **kwargs)
+                self.assertFalse(ready.exists())
+                return result
+            with patch.object(Path, 'write_text', write):
+                pet.write_ready_marker(ready)
+            self.assertEqual(ready.read_text(encoding='utf-8'), 'ready')
+            self.assertEqual(list(Path(directory).iterdir()), [ready])

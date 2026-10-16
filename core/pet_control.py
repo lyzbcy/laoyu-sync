@@ -72,7 +72,12 @@ class PetController:
                 self._stop()
                 raise
             finally:
-                ready.unlink(missing_ok=True)
+                # A Windows scanner may briefly hold the closed marker; cleanup
+                # must not turn an acknowledged successful launch into a failure.
+                try:
+                    ready.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def close(self):
         with self._lock:
