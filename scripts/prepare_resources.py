@@ -7,6 +7,13 @@ import sys
 
 root = Path(__file__).resolve().parent.parent
 ver = re.search(r'__version__ = "([^"]+)"', (root/'core/version.py').read_text(encoding='utf-8')).group(1)
+# Keep installer identity and output filename on the same version source as the EXE.
+installer = root / 'installer/windows.iss'
+updated, replacements = re.subn(r'^#define AppVersion "[^"\r\n]+"',
+    '#define AppVersion "' + ver + '"', installer.read_text(encoding='utf-8'), count=1, flags=re.MULTILINE)
+if replacements != 1:
+    raise RuntimeError('Installer version declaration missing; refusing a stale installer')
+installer.write_text(updated, encoding='utf-8')
 numbers = tuple(map(int, ver.split('.'))) + (0,)
 fields = {'CompanyName':'捞鱼工作室','FileDescription':'捞鱼同步小助手','FileVersion':ver,'InternalName':'LaoyuSync','OriginalFilename':'LaoyuSync.exe','ProductName':'Laoyu Sync','ProductVersion':ver}
 strings = ',\n'.join(f'StringStruct({key!r}, {value!r})' for key,value in fields.items())
