@@ -1,7 +1,7 @@
 {
-  "version": "0.3.10",
-  "notes": "修复更新成功后进度横幅常驻显示手动下载；保留失败提示和进行中进度，不改同步配置或更新回执。",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.10/laoyu-sync-0.3.10-win-x64.zip",
-  "sha256": "52fbaa2b3cbef0233d27cb05e436c88947e308588aa33b9177f88f9a881f6b87",
-  "sizeBytes": 41905473
+  "version": "0.3.11",
+  "notes": "精灵回环请求直连并拒绝重定向；助手连接失败不再误报引擎未运行；保留外部更新代理，不改同步配置。",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.11/laoyu-sync-0.3.11-win-x64.zip",
+  "sha256": "0a0789a9b6f2c180bb5329efc2eaebb5abb0b8764b744ffb3b093071fe1a0637",
+  "sizeBytes": 41907145
 }

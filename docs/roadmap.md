@@ -1,3 +1,13 @@
+## 2026-10-19 0.3.11 精灵回环直连与状态分类正式发布
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.11 。运行时提交 b5d4bc3468bf0a44f4bb09c191b96e303fb94062，固定 CI https://github.com/lyzbcy/laoyu-sync/actions/runs/39193880457 两端成功。完整 155 项测试：Windows 155 项通过、0 项跳过；Mac 145 项通过、10 项平台专用跳过。新增 42 项隔离回归验证死代理、NO_PROXY、IPv4/localhost/IPv6、外部 HTTP/HTTPS 代理保留、回环鉴权不发代理、拒绝重定向、配置路径/XML及错误分类。全部使用合成凭据、临时目录或本机模拟服务，不访问用户同步身份；完整测试 bootstrap 同时隔离 HOME/USERPROFILE/LOCALAPPDATA/APPDATA，避免遗留兼容函数读取开发机配置。
+
+精灵的状态、关闭设置与手动启动引擎三处请求复用现有 stmanager.api_open；不设置系统/进程全局 NO_PROXY、不替换全局 opener，外部检查与更新下载沿用代理。网关鉴权失败、连接中断或响应异常显示助手通信问题，保留引擎未知状态；后端明确报告的停止、启动失败、暂停、同步与完成状态保持。未借此认定任一用户机器的实际进程环境或源码缺失原因。
+
+Windows 原始 CI 包可见窗口、renderer/engine ACK、小精灵开关与退出清理通过。Windows EXE/安装器 ProductVersion、Mac Info.plist 均为 0.3.11；Mac Mach-O arm64 核验通过。两端冻结 pet 模块的活动 poll、关闭与启动请求字节码均使用 api_open，网关错误分类也存在；没有仅凭 UI 资源推断核心补丁入包。Windows ZIP/安装器/Mac arm64 ZIP及 SHA256SUMS-0.3.11.txt 四项公开，CI原始资产、GitHub Release digest与公开URL完整回读SHA-256一致，正式 version.json 在回读后切换。
+
+本轮 Mac 无用户设备实机安装/GUI验收，不能据 CI 宣称用户设备已经修好或升级。Windows未代码签名、Mac未公证，沿用既有策略，不发行Intel Mac包。未自动升级任何用户电脑，未修改运行同步实例、系统代理或原有未提交源码目录。启动器描述仅同步本产品真实包记录，不宣称软件中心目录已更新。验收日志/身份配置不提交公开仓库。
+
 ## 2026-10-19 0.3.10 更新状态界面修复正式发布
 
 发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.10 。运行时提交 94216231f34c78835174b2aaae5f920a2a2275fa，固定 CI https://github.com/lyzbcy/laoyu-sync/actions/runs/39190461461 两端成功。Windows 113 项通过；macOS 113 项中 103 通过、10 项 Windows 专用跳过；共享 UI 的 9 个状态回归两端均执行通过。Windows 原始 CI EXE 的可见窗口、renderer/engine ACK、小精灵开关与退出清理通过。
