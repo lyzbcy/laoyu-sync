@@ -16,9 +16,10 @@ import urllib.request
 import activity
 import config
 
-__version__ = "0.3.9"
+__version__ = "0.3.10"
 
 CHANGELOG = [
+    {"ver":"0.3.10","date":"2026-10-19","items":["更新成功后收起进度横幅，不再常驻显示手动下载", "保留更新失败提示和进行中进度，完成后停止快速轮询", "Windows 与 Mac 共用界面修复，不改同步配置、设备身份或更新回执"]},
     {"ver":"0.3.9","date":"2026-10-15","items":["Mac 新增桌面小精灵，可在设置或右键菜单开启关闭并记住选择", "修复小精灵启动失败、并发开关和退出时的子进程清理", "Mac 应用版本元数据随版本源同步"]},
     {"ver":"0.3.8","date":"2026-10-15","items":["修复 Windows 一键更新实机 5/5 失败回滚：引擎探测 powershell 子进程约每 2 秒继承安装目录为 CWD 并存活占用，更新 helper 只等旧主进程 PID，备份改名必现 WinError 32（取证 verification/win-037）", "启动即把进程 CWD 迁到数据目录（config.relocate_cwd），探测子进程与更新 helper 显式指定 CWD，不再继承安装目录", "更新 helper 备份改名前最多重试 10 秒，等待旧实例残留子进程退出", "0.3.6 及更早版本自更新仍受影响：升级到 0.3.8 需经发布页或软件中心手动完成一次"]},
     {"ver":"0.3.7","date":"2026-10-15","items":["修复 Mac/Linux 退出不停止自启引擎：SIGTERM/SIGINT 统一转 KeyboardInterrupt 走优雅退出清理（实机验收 MAC-QUIT-1/2）", "覆盖后台启动继承 SIG_IGN 的场景，非主线程调用安全跳过", "修复更新暂存清理在 macOS /var 软链与 Windows 8.3 别名目录下的 CI 可移植性，命令行匹配同时比对解析前后路径", "修复 macOS 上非 UTF-8 进程参数导致引擎误判未知进程而拒绝启动"]},

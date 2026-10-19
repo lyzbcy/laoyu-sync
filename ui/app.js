@@ -768,10 +768,12 @@ async function loadVersion() {
     $("verBadge").onclick = () => showChangelog(v);
     const u = v.update || {};
     const transaction = await api("GET", "/api/update/status");
-    if (["failed", "complete"].includes(transaction.stage)) {
+    if (transaction.stage === "failed") {
       $("updateProgress").classList.remove("hidden");
       $("updateMeter").value = transaction.percent;
       $("updateMessage").textContent = transaction.message;
+    } else if (["idle", "complete"].includes(transaction.stage)) {
+      $("updateProgress").classList.add("hidden");
     }
     if (u.enabled && u.has_update) {
       $("updateBanner").classList.remove("hidden");
@@ -854,10 +856,11 @@ async function beginUpdate() {
 async function watchUpdate() {
   try {
     const u = await api("GET", "/api/update/status");
+    $("updateProgress").classList.toggle("hidden", ["idle", "complete"].includes(u.stage));
     $("updateMeter").value = u.percent;
     $("updateMessage").textContent = u.message;
     $("btnUpdate").disabled = !["failed", "idle"].includes(u.stage);
-    if (!["failed", "idle"].includes(u.stage)) setTimeout(watchUpdate, 700);
+    if (!["failed", "idle", "complete"].includes(u.stage)) setTimeout(watchUpdate, 700);
   } catch(e) { $("updateMessage").textContent = "正在重启；若没有自动打开，请重新打开软件。"; }
 }
 boot();
