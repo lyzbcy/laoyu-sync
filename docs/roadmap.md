@@ -1,3 +1,13 @@
+## 2026-10-19 0.3.10 更新状态界面修复正式发布
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.10 。运行时提交 94216231f34c78835174b2aaae5f920a2a2275fa，固定 CI https://github.com/lyzbcy/laoyu-sync/actions/runs/39190461461 两端成功。Windows 113 项通过；macOS 113 项中 103 通过、10 项 Windows 专用跳过；共享 UI 的 9 个状态回归两端均执行通过。Windows 原始 CI EXE 的可见窗口、renderer/engine ACK、小精灵开关与退出清理通过。
+
+后端成功回执仍保留，前端 complete/idle 收起更新横幅，failed 保留错误与手动下载，进行中保留进度；complete 结束快速轮询。下载、helper、回滚、归档及同步配置均未改。Windows 本机 0.3.9 前端热修补在真实成功回执状态刷新并跨多个 5 秒轮询通过，助手/同步引擎 PID 及配置、回执哈希不变；其他状态用同一渲染函数与样式的隔离网页验证，不伪造真实更新失败。
+
+Windows x64 ZIP/安装器与 macOS arm64 ZIP、SHA256SUMS-0.3.10.txt 四项公开。CI 外层产物 digest、原始内包 SHA-256、GitHub Release digest 及公开 URL 全量回读字节一致；正式 version.json 在公开回读后才切换。两端包内 app.js 与候选源码一致（按换行规范比较），Windows EXE/安装器 ProductVersion、Mac Info.plist 均为 0.3.10，Mac Mach-O CPU 为 arm64。未重压缩发行包，未覆盖旧版本。
+
+本轮 Mac 完成 CI 构建、共享 UI 回归和包内版本/架构核对，未在用户 Mac 上实机安装/GUI 验收。Windows 未代码签名，Mac 未公证，保持既有政策；不发行 Intel Mac 包。启动器描述文件同步真实包哈希，仅更新产品仓库元数据，不宣称软件中心目录或其他客户端已更新。验收证据留在任务工作区；不提交 config、令牌、日志、设备身份或测试配置。
+
 ## 2026-10-16 0.3.9 正式发布
 
 发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.9 。最终源码 15c24b8261af6ae8bd0e86efcd2572936c2052f1；CI 38836703687 两端成功，Windows 112 项全过、Mac 102 项通过/10 项 Windows 专用跳过。最终原始 CI 包完成 Windows 原生主窗口/renderer+engine ACK/宠物开关与退出清理、Mac Apple Silicon 透明显示/关闭/重开/关闭后重启记忆/Cmd-Q 清理实机验证。未用源码测试代替包运行结论。
