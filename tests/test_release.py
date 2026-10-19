@@ -19,7 +19,7 @@ class VersionContracts(unittest.TestCase):
             headers = {'Content-Length': '7'}
         with tempfile.TemporaryDirectory() as temp:
             executable = Path(temp) / 'app/LaoyuSync.exe'
-            with patch.object(sys, 'executable', str(executable)), patch('download_routes.ranked_routes', return_value=[('isolated', 'https://github.com/isolated.zip')]), patch('updater.urllib.request.urlopen', return_value=Response(b'corrupt')), patch('updater.subprocess.Popen') as launch, patch.dict(updater._state, {'stage':'downloading'}, clear=True):
+            with patch.object(sys, 'platform', 'win32'), patch.object(sys, 'executable', str(executable)), patch('download_routes.ranked_routes', return_value=[('isolated', 'https://github.com/isolated.zip')]), patch('updater.urllib.request.urlopen', return_value=Response(b'corrupt')), patch('updater.subprocess.Popen') as launch, patch.dict(updater._state, {'stage':'downloading'}, clear=True):
                 updater._download({'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/app-win-x64.zip','sha256':'0'*64})
                 launch.assert_not_called()
                 self.assertEqual(updater.status()['stage'], 'failed')
