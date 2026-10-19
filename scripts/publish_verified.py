@@ -23,6 +23,12 @@ def gh(*args):
     return subprocess.check_output(['gh', *args], text=True)
 
 
+def release_for_tag(tag):
+    # A newly created draft may have no Git tag yet, so /releases/tags is 404.
+    releases = json.loads(gh('api', f'repos/{REPO}/releases?per_page=100'))
+    return next(release for release in releases if release['tag_name'] == tag)
+
+
 def validate():
     run_id = os.environ['BUILD_RUN_ID']
     if not re.fullmatch(r'[0-9]+', run_id):
@@ -69,7 +75,7 @@ def publish():
         gh('release','create',tag,'--repo',REPO,'--target',build['source'],
            '--title','捞鱼同步小助手 '+__version__,'--notes-file',str(notes),'--draft')
     files = [final/name for name in names] + [final/f'SHA256SUMS-{__version__}.txt',final/'version.json']
-    release = json.loads(gh('api',f'repos/{REPO}/releases/tags/{tag}'))
+    release = release_for_tag(tag)
     for file in files:
         digest = hashlib.sha256(file.read_bytes()).hexdigest()
         found = next((asset for asset in release['assets'] if asset['name']==file.name),None)
@@ -79,7 +85,7 @@ def publish():
         else:
             gh('release','upload',tag,str(file),'--repo',REPO)
     gh('release','edit',tag,'--repo',REPO,'--draft=false','--latest')
-    release = json.loads(gh('api',f'repos/{REPO}/releases/tags/{tag}'))
+    release = release_for_tag(tag)
     evidence = dict(build=build,version=__version__,assets=[])
     for file in files:
         expected = hashlib.sha256(file.read_bytes()).hexdigest()
