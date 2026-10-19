@@ -60,6 +60,8 @@ class Bridge:
         import webview
         if platform.system() == 'Windows' and not webview.windows[0].native.Visible:
             return False
+        if platform.system() == 'Darwin' and not webview.windows[0].native.isVisible():
+            return False
         Path(self.ack).write_text(json.dumps({'version': version.__version__, 'engine_ready': True, 'renderer_ready': True}), encoding='utf-8')
         return True
 
@@ -81,7 +83,12 @@ class Bridge:
             else:
                 window.maximize()
         elif action == 'close':
-            window.destroy()
+            # Return the JS bridge result before destroying WKWebView. Otherwise
+            # pywebview's result callback can wait forever on a closed renderer,
+            # leaving a non-daemon bridge thread alive after the window closes.
+            closer = threading.Timer(.2, window.destroy)
+            closer.daemon = True
+            closer.start()
         else:
             raise ValueError('未知窗口操作')
 

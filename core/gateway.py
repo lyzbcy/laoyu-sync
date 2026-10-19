@@ -20,6 +20,8 @@ import version
 import wizard
 import updater
 import feedback
+import sync_network
+import stmanager
 from wizard import WizardError
 
 MIME = {
@@ -122,7 +124,7 @@ def make_handler(mgr):
                     self.serve_static(path)
             except BrokenPipeError:
                 pass
-            except WizardError as exc:
+            except (WizardError, ValueError) as exc:
                 self._err(str(exc))
             except Exception as exc:
                 activity.error("GET %s failed: %s", path, exc)
@@ -149,11 +151,13 @@ def make_handler(mgr):
                 if path == '/api/update/start':
                     return self._json(updater.start())
                 if path == '/api/settings':
+                    if 'sync_network_mode' in body:
+                        sync_network.set_mode(body['sync_network_mode'])
                     if 'pet_enabled' in body:
                         set_pet_enabled(body['pet_enabled'])
                     if body.get('dismiss_review'):
                         config.set('review_dismissed_at', time.time())
-                    return self._json({'ok': True})
+                    return self._json({'ok': True, 'sync_network': stmanager.network_preference()})
                 if path == "/api/device/add":
                     result = wizard.add_device_flow(
                         mgr, body.get("device_id", ""), body.get("name", ""),
@@ -190,6 +194,10 @@ def make_handler(mgr):
         # ---------- API 实现
 
         def route_api(self, path, qs):
+            if path == '/api/network-rules':
+                return self._json(sync_network.bypass_rules(qs.get('format', ['clash'])[0]))
+            if path == '/api/network-preference':
+                return self._json(stmanager.network_preference())
             if path == '/api/update/status':
                 return self._json(updater.status())
             if path == '/api/diagnostics':
@@ -218,6 +226,7 @@ def make_handler(mgr):
                     "feedback_url_configured": bool(config.get("feedback_url")),
                     "pet_enabled": bool(config.get('pet_enabled')),
                     "pet_supported": PET_SUPPORTED,
+                    "sync_network": stmanager.network_preference(),
                     "platform": __import__('platform').system(),
                     "engine_url": mgr.client.base,
                     "review_due": config.get('launch_count') >= 5 and time.time() - float(config.get('first_used') or time.time()) > 7 * 86400 and time.time() - float(config.get('review_dismissed_at') or 0) > 15 * 86400,

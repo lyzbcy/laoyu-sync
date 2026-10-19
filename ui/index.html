@@ -41,7 +41,7 @@ window.addEventListener("error", function (e) {
       <a href="#/folders" data-page="folders">同步项目<span id="dot-folders" class="nav-dot hidden"></span></a>
       <a href="#/events" data-page="events">动态</a>
       <a href="#/feedback" data-page="feedback">遇到问题反馈</a>
-      <a href="#/about" data-page="about">关于</a>
+      <a href="#/about" data-page="about">设置 / 关于</a>
     </nav>
     <div class="side-foot">
       <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.3</span>
@@ -204,6 +204,25 @@ window.addEventListener("error", function (e) {
     <!-- 关于 -->
     <section id="page-about" class="page hidden">
       <div class="about">
+        <div class="card sync-network-card">
+          <h2>同步网络</h2>
+          <label for="syncNetworkMode">文件同步连接方式</label>
+          <select id="syncNetworkMode">
+            <option value="system">沿用环境代理</option>
+            <option value="direct">优先直连（忽略环境变量代理）</option>
+          </select>
+          <p id="syncNetworkStatus" class="small mut" role="status" aria-live="polite">正在读取设置…</p>
+          <p class="small mut">只影响文件同步，更新和反馈沿用原有网络。修改后退出并重新打开小助手生效；如果沿用了其他工具启动的引擎，需先从原工具退出引擎。</p>
+          <details>
+            <summary>开着 TUN／全局 VPN？添加同步直连规则</summary>
+            <p class="small mut">系统层代理仍可能接管同步流量。上面的开关无法保证绕过 TUN；请添加规则后，在代理软件的连接记录中确认 syncthing 的连接使用 DIRECT／直连。Syncthing 的中继连接也可能使用直连出站，不能仅看是否经过中继。</p>
+            <label for="syncRuleFormat">选择配置格式</label>
+            <select id="syncRuleFormat"><option value="clash">Clash / Mihomo</option><option value="singbox">sing-box 1.11+</option><option value="surge">Surge</option></select>
+            <button id="btnSyncRules" class="btn small" type="button">查看并复制规则</button>
+            <p class="small mut">其他 VPN 可在其「分应用绕过／排除应用」中选择同步引擎 syncthing.exe（Windows）或 syncthing（Mac）。若工具不支持分流，需要关闭 VPN 或更换网络后同步。</p>
+            <p class="small mut">使用 Tailscale 等组网工具时，它自身的连接也可能被代理接管，需要同时为组网工具设置直连。进程识别或分流不受支持时，无法保证节省代理流量；请勿用整个项目文件夹作为排除规则。</p>
+          </details>
+        </div>
         <div class="card about-card">
           <img class="avatar" src="https://s41.ax1x.com/2025/12/05/pZmPZPH.png" alt="捞鱼"
                onerror="this.style.display='none'">

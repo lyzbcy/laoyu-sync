@@ -1,0 +1,38 @@
+name: Publish verified immutable packages
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Build desktop packages run ID
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate build and unchanged runtime
+        run: |
+          python scripts/publish_verified.py validate
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+          path: release-assets
+      - name: Publish and read back every asset
+        run: python scripts/publish_verified.py publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-public-evidence
+          path: release-assets/public-readback.json

@@ -27,6 +27,7 @@ _DEFAULTS = {
     "review_dismissed_at": "",
     "last_update_attempt": "",
     "pet_enabled": True,
+    "sync_network_mode": "system",
     "launch_count": 0,
     "first_used": "",
 }

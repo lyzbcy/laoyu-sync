@@ -42,6 +42,16 @@ class History(unittest.TestCase):
         self.assertIn(version.__version__,updater.status()['message'])
 
 class Cleanup(unittest.TestCase):
+    def test_healthy_installed_process_ack_argument_does_not_retain_download_forever(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder, data, receipt = self.fixture(tmp)
+            target = Path(tmp) / 'app'; target.mkdir()
+            executable = target / 'LaoyuSync.exe'; executable.write_bytes(b'MZnew')
+            process = dict(ProcessId=12345, ExecutablePath=str(executable),
+                           CommandLine=f'"{executable}" --upgrade-ack "{folder / "healthy.json"}"')
+            self.assertTrue(cleanup.cleanup_stage(folder, tmp, snapshot=lambda: [process], now=lambda: 1000))
+            self.assertTrue(executable.exists())
+            self.assertTrue(data.exists())
     def test_safe_tree_accepts_system_alias_ancestor(self):
         """macOS /var→/private/var、Windows 8.3 别名属于系统级路径别名，
         不是恶意重定向；按解析后的真实路径归属校验（CI 可移植性回归）。"""

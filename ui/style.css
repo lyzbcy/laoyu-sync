@@ -231,7 +231,7 @@ nav a.active {
 /* ================= 表单 ================= */
 .form { display: flex; flex-direction: column; gap: 6px; }
 .form label { font-size: 13px; margin-top: 6px; color: #3A414B; }
-input, textarea {
+input, textarea, select {
   border: 1px solid #D8DEE7; border-radius: var(--r-ctl);
   padding: 9px 12px; font-size: 14px; font-family: inherit;
   background: #FBFCFE; color: var(--ink);
@@ -239,7 +239,7 @@ input, textarea {
 }
 input::placeholder, textarea::placeholder { color: #A7AFBC; }
 /* focus：品牌绿 outline + 绿描边 */
-input:focus, textarea:focus {
+input:focus, textarea:focus, select:focus {
   outline: 2px solid rgba(46, 125, 50, .30); outline-offset: 1px;
   border-color: var(--green); background: #fff;
 }
@@ -335,7 +335,13 @@ input[type="checkbox"] { accent-color: var(--green); width: auto; }
 .event.warn { color: #8A5A00; } .event.error { color: var(--red); }
 
 /* ================= 关于 ================= */
-.about { display: flex; justify-content: center; }
+.about { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.sync-network-card { width: 100%; max-width: 560px; }
+.sync-network-card label { display: block; margin: 12px 0 8px; }
+.sync-network-card select { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: inherit; font: inherit; }
+.sync-network-card summary { cursor: pointer; line-height: 1.6; }
+.sync-network-card p { line-height: 1.7; overflow-wrap: anywhere; }
+.sync-network-card .btn { margin-top: 10px; }
 .about-card { max-width: 560px; width: 100%; text-align: center; position: relative; }
 .avatar { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--green-soft); box-shadow: 0 4px 14px rgba(46, 125, 50, .18); }
 .about-head { margin: 8px 0 4px; }

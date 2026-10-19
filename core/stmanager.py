@@ -22,10 +22,18 @@ from pathlib import Path
 
 import activity
 import config
+import sync_network
 from network import NetworkMonitor
 from status_summary import setup_summary
 _owned_process = None
+_owned_network_mode = None
 _detected_home = None
+
+
+def network_preference():
+    child = _owned_process
+    return sync_network.status(child is not None and child.poll() is None,
+                               _owned_network_mode)
 
 
 def running_config_home():
@@ -269,7 +277,7 @@ def selected_engine_running(home):
 
 
 def launch():
-    global _owned_process
+    global _owned_process, _owned_network_mode
     exe = find_syncthing_exe()
     if not exe:
         activity.user("没找到 syncthing 引擎程序，请先安装 Syncthing", "error")
@@ -284,9 +292,11 @@ def launch():
         command = [exe, "serve", "--no-browser", "--no-upgrade", f"--home={engine_home()}", f"--logfile={logfile}"]
         if os.environ.get('LAOYU_ST_GUI'):
             command.append('--gui-address=' + os.environ['LAOYU_ST_GUI'])
+        selected = sync_network.mode()
         _owned_process = subprocess.Popen(
-            command, **kwargs
+            command, env=sync_network.engine_environment(selected), **kwargs
         )
+        _owned_network_mode = selected
         return True
     except Exception as exc:
         activity.error("launch syncthing failed: %s", exc)
@@ -492,6 +502,7 @@ class STManager:
 
     def status(self):
         snap = {
+            "sync_network": network_preference(),
             "syncthing": {"running": True, "api_ok": False,
                           "version": "", "uptime": 0},
             "folders": [], "devices": [],

@@ -41,6 +41,8 @@ Inno Setup 6 的 ISCC 编译 installer/windows.iss；Actions 构建 Windows 和 
 
 外壳 MIT，Syncthing MPL-2.0 独立进程，原始许可证与源码地址随包提供。见 THIRD_PARTY_NOTICES.md。原创表情素材归原作者所有。
 
-开发版0.3.3规范审计见docs/requirements-audit.md：反馈客户端已补一级入口、分类、日志选择/预览和接收确认，但接收服务尚未开通，不能直达作者；正式发布版仍为0.3.2。
+当前开发候选为 0.3.13，正式发行状态以 version.json 和 docs/roadmap.md 为准。规范修复与验收范围见 docs/standards-remediation.md；旧审计保留为修复前快照。
 
-0.3.3按用户指定方式直发企业微信：日志为群内ZIP附件，不经过捞鱼服务器。预配置机器人链接仅注入发行包，不放公开源码；自行从源码构建未注入配置时不会发送。
+反馈直接发至作者企业微信，日志为 ZIP 附件，不经过作者服务器。官方包在构建时注入渠道；自行构建需先配置私有 LAOYU_FEEDBACK_WEBHOOK，运行 scripts/prepare_feedback.py。未配置渠道时正式构建会失败，凭据不提交源码仓库。
+
+Windows 与 Mac 的完整应用支持一键更新，按平台和架构选择 ZIP，比较 GitHub 与固定镜像线路并验证完整 SHA-256；新版窗口和引擎确认就绪后保留旧版 24 小时，再按安全凭据自动清理。已有旧 Mac 版需手动安装一次支持该更新器的新版本。修改和删除同步项目的行为不因更新而改变。

@@ -1,3 +1,9 @@
+## 2026-10-19 0.3.12 同步优先直连候选
+
+设置 / 关于新增持久化的同步网络偏好；仅本助手启动的同步引擎清除代理环境变量，外部引擎保留，显示重启待应用。TUN／全局 VPN 不承诺自动绕过；提供 Windows/Mac 的 Clash/Mihomo、Surge、sing-box 配置片段与连接记录核实说明。更新和反馈网络不改，正式更新清单不提前切换。详情 docs/sync-network.md。
+
+新增 8 项隔离测试，完整 163 项通过；真实双引擎在继承 SOCKS 变量环境中同步 1 MiB，SHA-256 一致、测试代理零连接，仅代表应用代理环境与局域网验证。Kimi WebBridge 验证两尺寸设置、保存后提示、三种规则和剪贴板失败后的手动复制。修复启动前元数据导致设置页状态滞留，按同步快照实时更新网络应用状态。Windows 冻结候选主窗口、renderer/engine ACK、小精灵开关和正常退出已验证；最终构建与两端 CI 状态见候选 PR。本机测试目录 verification/sync-network-0310、network-ui-0310、network-native-0311。不把测试环境绕过当作粉丝的 TUN 路由验证，不改真实同步项目。
+
 ## 2026-10-19 0.3.11 精灵回环直连与状态分类正式发布
 
 发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.11 。运行时提交 b5d4bc3468bf0a44f4bb09c191b96e303fb94062，固定 CI https://github.com/lyzbcy/laoyu-sync/actions/runs/39193880457 两端成功。完整 155 项测试：Windows 155 项通过、0 项跳过；Mac 145 项通过、10 项平台专用跳过。新增 42 项隔离回归验证死代理、NO_PROXY、IPv4/localhost/IPv6、外部 HTTP/HTTPS 代理保留、回环鉴权不发代理、拒绝重定向、配置路径/XML及错误分类。全部使用合成凭据、临时目录或本机模拟服务，不访问用户同步身份；完整测试 bootstrap 同时隔离 HOME/USERPROFILE/LOCALAPPDATA/APPDATA，避免遗留兼容函数读取开发机配置。
