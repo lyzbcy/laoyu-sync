@@ -1,5 +1,23 @@
 # 回归与隔离
 
+现状：0.3.13 候选；最终数量和平台范围见 CI 与补齐报告。
+负责人：捞鱼工作室。
+最后更新时间：2026-10-19。
+
+## 0.3.13 当前实现
+
+python -m unittest discover -s tests -v。bootstrap 为测试隔离 LAOYU_SYNC_DATA、LAOYU_ST_HOME、HOME、USERPROFILE、LOCALAPPDATA、APPDATA；临时身份和凭据不入包。独立测试文件也应能单独运行。
+
+Windows scripts/verify_windows.py 验冻结包可见窗口、renderer/engine ACK、反馈渠道、小精灵开关和退出；verify_update.py 验真实目录交换与 JS 故障回退。Mac scripts/verify_macos.py 在隔离配置运行真实 .app/helper，验证窗口和引擎 ACK、反馈配置、小精灵、成功替换与故障恢复；测试用关闭触发器只加在隔离副本，不进入发行包。
+
+download_routes 的测速/坏哈希/回退、Mac 包链接安全、健康备份保留期/占用/身份保护有独立负例。真实用户目录不作测试夹具，不发送真实反馈消息来替代模拟测试。
+
+遵循共享规范：主 Agent 操作同时，由独立子 Agent 通过 Kimi bridge 观察 UI 并写报告。截图大小、覆盖状态和未测项目必须写实；源码模拟不冒充最终包，CI 不冒充用户 Mac 实机。最终范围见 standards-remediation.md。
+
+## 历史记录（保留原验收范围）
+
+# 回归与隔离
+
 现状：业务、真实同步、网页和Windows事务通过。负责人：捞鱼工作室。最后更新：2026-09-30。
 
 python -m unittest discover -s tests -v：Windows23项通过；Mac16项平台通用通过、7项Windows helper按平台跳过。CI两平台构建通过，不能据此声称Mac用户设备实机验收。

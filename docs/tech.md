@@ -1,6 +1,8 @@
 # 架构与数据
 
-现状：Windows0.3.0实现与回归通过。负责人：捞鱼工作室。最后更新：2026-09-30。
+现状：稳定架构，0.3.13 新增跨平台更新事务和下载线路模块。
+负责人：捞鱼工作室。
+最后更新时间：2026-10-19。
 
 Python标准库业务核心 + pywebview桌面窗口 + 原生HTML/JS/CSS。PyInstaller onedir包含UI、宠物与Syncthing。Windows Inno Setup每用户安装；Mac独立CI、架构对应官方引擎。
 
