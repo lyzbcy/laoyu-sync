@@ -80,6 +80,31 @@ def stop_owned():
             child.wait(timeout=10)
     _owned_process = None
 
+
+def shutdown_external():
+    """用户明确请求接管时，经引擎自身 REST 接口优雅退出外部引擎。
+
+    只在能核实本机回环 GUI 地址与 API key 时执行，绝不强杀进程
+    （引擎可能正在写数据库/配置）；自动场景一律不调用本函数。
+    返回 (是否已退出, 失败说明)。
+    """
+    base, key = read_gui_config()
+    if not key or not loopback_api(base):
+        return False, '无法核实本机引擎接口，未执行退出；请从原工具退出该引擎'
+    try:
+        request = urllib.request.Request(base + '/rest/system/shutdown',
+                                         method='POST', headers={'X-API-Key': key})
+        with api_open(request, timeout=5):
+            pass
+    except Exception as exc:
+        return False, f'退出请求未能送达引擎：{exc}'
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if not process_running():
+            return True, ''
+        time.sleep(0.5)
+    return False, '引擎未在预期时间内退出，可能被原工具守护；请从原工具退出后再试'
+
 def config_candidates():
     """Known per-user locations only; never scan user files or remote machines."""
     if platform.system() == 'Windows':

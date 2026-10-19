@@ -339,6 +339,28 @@ input[type="checkbox"] { accent-color: var(--green); width: auto; }
 .sync-network-card { width: 100%; max-width: 560px; }
 .sync-network-card label { display: block; margin: 12px 0 8px; }
 .sync-network-card select { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: inherit; font: inherit; }
+.sync-mode-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sync-mode-row select { flex: 1; min-width: 200px; }
+.network-check-box { margin-top: 12px; }
+.network-check-box > span { display: block; margin-top: 6px; }
+.nc-pill { flex: none; padding: 2px 10px; border-radius: var(--r-pill); font-size: 12px; border: 1px solid var(--line); color: var(--mut); background: white; }
+.nc-pill.good { color: var(--green); border-color: var(--green-line); background: var(--green-soft); }
+.nc-pill.warn { color: #8A5A00; border-color: #F2D9A4; background: #FFF7E6; }
+.nc-summary { margin: 10px 0; padding: 8px 12px; border-radius: var(--r-ctl); font-size: 14px; line-height: 1.6; border: 1px solid var(--line); background: #FAFBFC; }
+.nc-summary.nc-pass { border-color: var(--green-line); background: var(--green-soft); color: var(--green-d); }
+.nc-summary.nc-warn { border-color: #F2D9A4; background: #FFF7E6; color: #7A4E00; }
+.nc-summary.nc-fail { border-color: #F3C1C3; background: #FDEFEF; color: #B3261E; }
+.nc-row { display: flex; gap: 10px; padding: 10px 0; border-top: 1px dashed var(--line); }
+.nc-row .nc-body p { margin: 4px 0 0; }
+.nc-icon { flex: none; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: white; margin-top: 1px; }
+.nc-icon.nc-pass { background: var(--green); }
+.nc-icon.nc-warn { background: #E8A23D; }
+.nc-icon.nc-fail { background: var(--red); }
+.nc-icon.nc-info { background: var(--grey); }
+.nc-action { color: var(--green-d); }
+.nc-takeover { margin: 12px 0; }
+.nc-takeover .btn { margin-top: 0; }
+.nc-takeover p { margin: 6px 0 0; }
 .sync-network-card summary { cursor: pointer; line-height: 1.6; }
 .sync-network-card p { line-height: 1.7; overflow-wrap: anywhere; }
 .sync-network-card .btn { margin-top: 10px; }

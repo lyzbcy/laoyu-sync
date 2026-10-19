@@ -207,12 +207,20 @@ window.addEventListener("error", function (e) {
         <div class="card sync-network-card">
           <h2>同步网络</h2>
           <label for="syncNetworkMode">文件同步连接方式</label>
-          <select id="syncNetworkMode">
-            <option value="system">沿用环境代理</option>
-            <option value="direct">优先直连（忽略环境变量代理）</option>
-          </select>
+          <div class="sync-mode-row">
+            <select id="syncNetworkMode">
+              <option value="system">沿用环境代理</option>
+              <option value="direct">优先直连（忽略环境变量代理）</option>
+            </select>
+            <span id="syncStatePill" class="nc-pill neutral">读取中…</span>
+          </div>
           <p id="syncNetworkStatus" class="small mut" role="status" aria-live="polite">正在读取设置…</p>
-          <p class="small mut">只影响文件同步，更新和反馈沿用原有网络。修改后退出并重新打开小助手生效；如果沿用了其他工具启动的引擎，需先从原工具退出引擎。</p>
+          <div class="network-check-box">
+            <button id="btnNetworkCheck" class="btn small" type="button">一键自检</button>
+            <span class="small mut">检查引擎归属、本地代理端口、系统层接管与转发痕迹</span>
+            <div id="networkCheckReport" class="hidden" aria-live="polite"></div>
+          </div>
+          <p class="small mut">自检只收集本机旁证，不读取代理软件；是否省代理流量最终以代理软件的连接记录为准。只影响文件同步，更新和反馈沿用原有网络。修改后退出并重新打开小助手生效；如果沿用了其他工具启动的引擎，需先从原工具退出引擎。</p>
           <details>
             <summary>开着 TUN／全局 VPN？添加同步直连规则</summary>
             <p class="small mut">系统层代理仍可能接管同步流量。上面的开关无法保证绕过 TUN；请添加规则后，在代理软件的连接记录中确认 syncthing 的连接使用 DIRECT／直连。Syncthing 的中继连接也可能使用直连出站，不能仅看是否经过中继。</p>

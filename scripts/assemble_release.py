@@ -32,7 +32,7 @@ def assemble(directory):
     installer = directory / f'laoyu-sync-{__version__}-win-x64-setup.exe'
     if installer.read_bytes()[:2] != b'MZ':
         raise ValueError('Missing Windows installer')
-    manifest = dict(version=__version__, notes='同步优先直连；补齐反馈、Mac一键更新与回退、下载线路、旧版清理和评价入口。',
+    manifest = dict(version=__version__, notes='同步直连一键自检与外部引擎一键接管，直连应用状态一眼可见。',
         **assets['win-x64'], platforms=assets)
     (directory / 'version.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
     adapter = json.loads((ROOT / 'launcher-adapter.json').read_text(encoding='utf-8'))

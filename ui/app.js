@@ -853,7 +853,87 @@ function renderSyncNetwork(preference) {
   if (!preference) return;
   $("syncNetworkMode").value = preference.mode;
   $("syncNetworkStatus").textContent = preference.note + (preference.mode === 'direct' ? ' ' + preference.caveat : '');
+  const pillText = {
+    applied: preference.mode === 'direct' ? ["good", "直连已应用到引擎"] : ["neutral", "沿用环境代理"],
+    restart_required: ["warn", "重启小助手后生效"],
+    external_or_stopped: ["warn", "引擎非小助手启动"],
+  }[preference.state] || ["neutral", preference.state];
+  const pill = $("syncStatePill");
+  pill.className = "nc-pill " + pillText[0];
+  pill.textContent = pillText[1];
 }
+const NETWORK_CHECK_ICONS = { pass: "✓", warn: "!", fail: "✕", info: "i" };
+function renderNetworkCheck(report) {
+  const rows = report.checks.map((c) => `
+    <div class="nc-row">
+      <span class="nc-icon nc-${esc(c.level)}">${NETWORK_CHECK_ICONS[c.level] || "i"}</span>
+      <div class="nc-body">
+        <strong>${esc(c.title)}</strong>
+        <p class="small mut">${esc(c.evidence)}</p>
+        <p class="small">${esc(c.conclusion)}${c.action ? ` <span class="nc-action">${esc(c.action)}</span>` : ""}</p>
+      </div>
+    </div>`).join("");
+  // 外部引擎正在运行时才提供接管：引擎本来就没跑时，小助手本来就会自己启动。
+  const takeover = report.engine_running && report.state === "external_or_stopped" ? `
+    <div class="nc-takeover">
+      <button id="btnEngineTakeover" class="btn small primary" type="button">一键接管：退出独立引擎并由小助手启动</button>
+      <p class="small mut">经引擎自身接口优雅退出，不强杀进程、不改同步配置和设备身份。开机自启的独立引擎下次登录可能再次启动，届时重复本操作或在原工具里关闭其自启。</p>
+    </div>` : "";
+  $("networkCheckReport").innerHTML =
+    `<div class="nc-summary nc-${esc(report.summary.level)}">${esc(report.summary.text)}</div>${takeover}${rows}` +
+    `<p class="small mut">${esc(report.note)}</p>`;
+  const btn = document.getElementById("btnEngineTakeover");
+  if (btn) btn.onclick = onEngineTakeover;
+}
+function waitEngineApplied(seconds) {
+  const deadline = Date.now() + seconds * 1000;
+  return new Promise((resolve) => {
+    const tick = async () => {
+      try {
+        const p = await api("GET", "/api/network-preference");
+        if (p.state === "applied" || Date.now() > deadline) return resolve();
+      } catch (_) { /* 引擎重启间隙的瞬时失败，继续等 */ }
+      setTimeout(tick, 3000);
+    };
+    tick();
+  });
+}
+async function onEngineTakeover() {
+  const go = await confirmBox(
+    "退出独立引擎？",
+    "将通过引擎自身接口优雅退出当前的独立 Syncthing，再由小助手按「优先直连」环境启动引擎。全程不修改同步配置、设备身份和项目文件。",
+    "退出并接管");
+  if (!go) return;
+  const btn = $("btnEngineTakeover");
+  btn.disabled = true;
+  btn.textContent = "正在退出并接管…";
+  try {
+    const result = await api("POST", "/api/engine/takeover");
+    toast(result.stopped_external ? "独立引擎已退出，小助手正在启动引擎…" : "正在由小助手启动引擎…");
+    await waitEngineApplied(30);
+    $("btnNetworkCheck").onclick();
+  } catch (err) {
+    toast(friendly(err));
+    btn.disabled = false;
+    btn.textContent = "一键接管：退出独立引擎并由小助手启动";
+  }
+}
+$("btnNetworkCheck").onclick = async () => {
+  const btn = $("btnNetworkCheck"), box = $("networkCheckReport");
+  btn.disabled = true;
+  const label = btn.textContent;
+  btn.textContent = "检测中…（约几秒）";
+  box.classList.remove("hidden");
+  box.innerHTML = '<p class="small mut">正在收集引擎连接与路由旁证…</p>';
+  try {
+    renderNetworkCheck(await api("GET", "/api/network-check"));
+  } catch (err) {
+    box.innerHTML = `<div class="nc-summary nc-fail">${esc(friendly(err))}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = label;
+  }
+};
 $("syncNetworkMode").onchange = async e => {
   const control = e.target;
   control.disabled = true;

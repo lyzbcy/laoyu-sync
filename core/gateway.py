@@ -20,6 +20,7 @@ import version
 import wizard
 import updater
 import feedback
+import network_check
 import sync_network
 import stmanager
 from wizard import WizardError
@@ -148,6 +149,16 @@ def make_handler(mgr):
                 if path == '/api/engine/start':
                     threading.Thread(target=mgr.ensure_running, daemon=True).start()
                     return self._json({'ok': True})
+                if path == '/api/engine/takeover':
+                    # 用户明确确认后才走这里：优雅退出外部引擎，再由小助手
+                    # 启动自己的引擎（应用当前同步网络偏好）。绝不自动触发。
+                    external_running = stmanager.process_running()
+                    if external_running:
+                        stopped, reason = stmanager.shutdown_external()
+                        if not stopped:
+                            return self._err(reason, 409)
+                    threading.Thread(target=mgr.ensure_running, daemon=True).start()
+                    return self._json({'ok': True, 'stopped_external': external_running})
                 if path == '/api/update/start':
                     return self._json(updater.start())
                 if path == '/api/settings':
@@ -198,6 +209,9 @@ def make_handler(mgr):
                 return self._json(sync_network.bypass_rules(qs.get('format', ['clash'])[0]))
             if path == '/api/network-preference':
                 return self._json(stmanager.network_preference())
+            if path == '/api/network-check':
+                # 快照类检测要跑系统命令（秒级），只按需触发，不进轮询接口。
+                return self._json(network_check.run())
             if path == '/api/update/status':
                 return self._json(updater.status())
             if path == '/api/diagnostics':

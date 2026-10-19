@@ -63,7 +63,8 @@ def publish():
             raise ValueError('Mac native gate not satisfied: '+name)
     assemble(final)
     notes = Path('release-notes.md')
-    notes.write_text('同步优先直连设置及常用代理分流说明；补齐反馈渠道、Mac一键更新和失败恢复、下载线路自动比较、旧版安全清理、评价入口与表单样式。\n\n'
+    notes.write_text('同步直连一键自检：引擎归属、本地代理端口、系统层接管、转发痕迹与系统代理五项本地旁证，分级结论附处理指引，不宣称已验证直连。\n'
+        '外部引擎一键接管：经引擎自身接口优雅退出并由小助手按直连偏好重启，不强杀、不自动触发；设置页三态状态条常驻显示直连应用情况。\n\n'
         'Windows x64 / Mac Apple Silicon。Mac旧版需先手动替换一次；Windows未代码签名，Mac为临时签名且未公证。\n\n'
         f'原始构建：https://github.com/{REPO}/actions/runs/{build["run_id"]}\n',encoding='utf-8')
     tag = 'v'+__version__
