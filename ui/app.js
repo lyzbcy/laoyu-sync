@@ -155,18 +155,25 @@ function confirmBox(title, html, okText) {
   });
 }
 
-function infoModal(title, html) {
+function infoModal(title, html, onClose) {
   $("modalTitle").textContent = title;
   $("modalBody").innerHTML = html;
   $("modalOk").classList.add("hidden");
   $("modalCancel").classList.add("hidden");
   $("modal").classList.remove("hidden");
-  $("modalClose").onclick = () => $("modal").classList.add("hidden");
-  $("modal").onclick = (e) => { if (e.target === $("modal")) $("modal").classList.add("hidden"); };
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    $("modal").classList.add("hidden");
+    document.removeEventListener("keydown", escOnce);
+    if (onClose) onClose();
+  };
+  $("modalClose").onclick = close;
+  $("modal").onclick = (e) => { if (e.target === $("modal")) close(); };
   const escOnce = (e) => {
     if (e.key === "Escape") {
-      $("modal").classList.add("hidden");
-      document.removeEventListener("keydown", escOnce);
+      close();
     }
   };
   document.addEventListener("keydown", escOnce);
@@ -873,10 +880,24 @@ $("btnSyncRules").onclick = async () => {
 window.addEventListener('focus', loadMeta);
 $("btnLogs").onclick = async () => { try { const d = await api("GET", "/api/diagnostics"); if (await copyText(d.text)) toast("诊断日志已复制；可能包含路径和设备名称，请检查后再分享"); else infoModal("请手动复制诊断日志", `<p>自动复制失败，请选中下面内容复制；分享前检查路径和设备名称。</p><textarea rows="12" style="width:100%">${esc(d.text)}</textarea>`); } catch(e) { toast(friendly(e)); } };
 $("btnEngineStart").onclick = async () => { try { await api("POST", "/api/engine/start"); toast("正在尝试启动引擎，请查看动态"); } catch(e) { toast(friendly(e)); } };
-async function showReview() {
-  const ok = await confirmBox("小助手帮上忙了吗？", "如果用起来顺手，你愿意给项目点一个 Star 吗？这对我很有帮助。关闭后至少 15 天不再提示。", "去点 Star");
-  await api("POST", "/api/settings", {dismiss_review: true});
-  if (ok) openExternal("https://github.com/lyzbcy/laoyu-sync");
+let REVIEW_OPEN = false;
+function showReview() {
+  if (REVIEW_OPEN || !$("modal").classList.contains('hidden')) return;
+  REVIEW_OPEN = true;
+  infoModal('小助手帮上忙了吗？', '<p>欢迎写下真实感受，也可以给开源项目点个 Star。关闭后至少 15 天不再提醒。</p><div class="row"><button id="btnWriteReview" class="btn primary">写真实评价</button><button id="btnReviewStar" class="btn">去点 Star</button></div>', () => {
+    REVIEW_OPEN = false;
+    api('POST', '/api/settings', {dismiss_review: true}).catch(error => toast(friendly(error)));
+  });
+  $("btnWriteReview").onclick = () => {
+    $("modalClose").click();
+    location.hash = '#/feedback';
+    $("feedbackCategory").value = '建议与评价';
+    $("inFeedback").focus();
+  };
+  $("btnReviewStar").onclick = () => {
+    $("modalClose").click();
+    openExternal('https://github.com/lyzbcy/laoyu-sync');
+  };
 }
 async function beginUpdate() {
   const ok = await confirmBox("更新并重启", "更新会保留你的同步配置和文件。国内 GitHub 下载较慢时可开启代理。完成后窗口会自动重新打开。", "更新");

@@ -19,14 +19,14 @@ class VersionContracts(unittest.TestCase):
             headers = {'Content-Length': '7'}
         with tempfile.TemporaryDirectory() as temp:
             executable = Path(temp) / 'app/LaoyuSync.exe'
-            with patch.object(sys, 'executable', str(executable)), patch('updater.urllib.request.urlopen', return_value=Response(b'corrupt')), patch('updater.subprocess.Popen') as launch, patch.dict(updater._state, {'stage':'downloading'}, clear=True):
+            with patch.object(sys, 'executable', str(executable)), patch('download_routes.ranked_routes', return_value=[('isolated', 'https://github.com/isolated.zip')]), patch('updater.urllib.request.urlopen', return_value=Response(b'corrupt')), patch('updater.subprocess.Popen') as launch, patch.dict(updater._state, {'stage':'downloading'}, clear=True):
                 updater._download({'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/app-win-x64.zip','sha256':'0'*64})
                 launch.assert_not_called()
                 self.assertEqual(updater.status()['stage'], 'failed')
                 self.assertIn('校验失败', updater.status()['message'])
 
     def test_duplicate_update_does_not_start_another_worker(self):
-        info = {'has_update':True,'remote_version':'1.0.0','sha256':'a'*64,'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/app-win-x64.zip'}
+        info = {'has_update':True,'remote_version':'1.0.0','sha256':'a'*64,'download_url':'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/laoyu-sync-1.0.0-win-x64.zip'}
         with patch.object(sys, 'frozen', True, create=True), patch.object(sys, 'platform', 'win32'), patch('version.check', return_value=info), patch('updater.threading.Thread') as worker, patch.dict(updater._state, {'stage':'preparing'}, clear=True):
             with self.assertRaises(ValueError):
                 updater.start()

@@ -11,14 +11,17 @@
 import datetime
 import json
 import re
+import platform
+import sys
 import urllib.request
 
 import activity
 import config
 
-__version__ = "0.3.12"
+__version__ = "0.3.13"
 
 CHANGELOG = [
+    {"ver":"0.3.13","date":"2026-10-19","items":["补齐正式包反馈渠道与构建校验，新增真实评价直达并保留15天免打扰", "新增 Mac 一键更新、窗口就绪确认与失败回退", "更新下载自动比较可信线路，校验后安装；健康确认后的旧版备份自动按保留期清理", "统一表单样式、开发文档和启动器发行登记"]},
     {"ver":"0.3.12","date":"2026-10-19","items":["新增文件同步优先直连设置，忽略引擎环境变量代理并记住选择", "提供 Windows / Mac 常用代理的同步进程直连规则与 TUN 分流说明", "区分设置已保存、重启待应用与外部引擎，避免将设置误报为已验证直连"]},
     {"ver":"0.3.11","date":"2026-10-19","items":["精灵本机网关请求绕过环境代理并拒绝重定向，外部更新代理保留", "助手连接失败或访问被拒绝时不再误报同步引擎未运行", "Windows 与 Mac 共用修复，不改系统代理、同步配置或设备身份"]},
     {"ver":"0.3.10","date":"2026-10-19","items":["更新成功后收起进度横幅，不再常驻显示手动下载", "保留更新失败提示和进行中进度，完成后停止快速轮询", "Windows 与 Mac 共用界面修复，不改同步配置、设备身份或更新回执"]},
@@ -66,6 +69,22 @@ def _today():
     return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
 
 
+def asset_suffix():
+    if sys.platform == 'darwin':
+        arch = 'arm64' if platform.machine().lower() in ('arm64', 'aarch64') else 'x86_64'
+        return 'macos-' + arch
+    return 'win-x64'
+
+
+def select_asset(manifest):
+    suffix = asset_suffix()
+    assets = manifest.get('platforms', {})
+    selected = assets.get(suffix)
+    if isinstance(selected, dict):
+        return selected
+    return manifest if suffix == 'win-x64' else {}
+
+
 def check(force=False):
     """返回 update 信息体。每天首次使用检查一次；失败静默。"""
     url = config.get("update_manifest_url")
@@ -82,14 +101,18 @@ def check(force=False):
         req = urllib.request.Request(url, headers={"User-Agent": "SyncSprite/" + __version__})
         with urllib.request.urlopen(req, timeout=8) as resp:
             manifest = json.loads(resp.read().decode("utf-8"))
+        asset = select_asset(manifest)
+        newer = semver_tuple(str(manifest.get('version', ''))) > semver_tuple(__version__)
+        if newer and (not asset.get('download_url') or not asset.get('sha256')):
+            raise ValueError('新版尚未提供适合本机系统的更新包')
         config.set("last_update_check", today)
         result = {
             "enabled": True,
             "remote_version": str(manifest.get("version", "")),
             "notes": str(manifest.get("notes", "")),
-            "download_url": str(manifest.get("download_url", "")),
+            "download_url": str(asset.get("download_url", "")),
             "has_update": semver_tuple(str(manifest.get("version", ""))) > semver_tuple(__version__),
-            "sha256": str(manifest.get('sha256', '')),
+            "sha256": str(asset.get('sha256', '')),
             "error": "",
         }
         if result["has_update"]:

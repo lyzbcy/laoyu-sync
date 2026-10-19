@@ -60,6 +60,8 @@ class Bridge:
         import webview
         if platform.system() == 'Windows' and not webview.windows[0].native.Visible:
             return False
+        if platform.system() == 'Darwin' and not webview.windows[0].native.isVisible():
+            return False
         Path(self.ack).write_text(json.dumps({'version': version.__version__, 'engine_ready': True, 'renderer_ready': True}), encoding='utf-8')
         return True
 

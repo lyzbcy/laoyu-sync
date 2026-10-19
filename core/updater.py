@@ -12,6 +12,7 @@ import time
 import urllib.parse
 import urllib.request
 import zipfile
+import download_routes
 
 import activity
 import config
@@ -27,7 +28,8 @@ def trusted_url(url, manifest=False):
         return False
     if manifest:
         return p.hostname == 'raw.githubusercontent.com' and p.path == '/lyzbcy/laoyu-sync/main/version.json'
-    return p.hostname == 'github.com' and p.path.startswith('/lyzbcy/laoyu-sync/releases/download/') and p.path.endswith('-win-x64.zip')
+    return (p.hostname == 'github.com' and not p.query and not p.fragment
+            and re.fullmatch(r'/lyzbcy/laoyu-sync/releases/download/v?\d+\.\d+\.\d+/laoyu-sync-\d+\.\d+\.\d+-(?:win-x64|macos-(?:arm64|x86_64))\.zip', p.path) is not None)
 
 def archive_result(reason, running_version=None):
     """Move the exact receipt into history; never remove sync settings or identity."""
@@ -108,14 +110,17 @@ def safe_extract(archive, target):
         raise ValueError('更新包缺少完整主程序与依赖')
 
 def start():
-    if not getattr(sys, 'frozen', False) or sys.platform != 'win32':
-        raise ValueError('当前环境请从发布页下载并安装，Windows 完整包支持一键更新')
+    if not getattr(sys, 'frozen', False) or sys.platform not in ('win32', 'darwin'):
+        raise ValueError('请从 Windows 或 Mac 完整应用打开后使用一键更新')
     from version import check
     info = check(force=True)
     if info.get('error') or not info.get('has_update'):
         raise ValueError(info.get('error') or '当前没有可用的新版本')
     if not trusted_url(info.get('download_url', '')) or not re.fullmatch(r'[a-fA-F0-9]{64}', info.get('sha256', '')):
         raise ValueError('新版缺少可信下载地址或校验值，请前往发布页')
+    from version import asset_suffix
+    if not info['download_url'].endswith('-' + asset_suffix() + '.zip'):
+        raise ValueError('新版未提供适合本机系统和架构的更新包')
     with _lock:
         if _state['stage'] in ('downloading', 'verifying', 'preparing', 'restarting'):
             raise ValueError('更新正在进行，请稍候')
@@ -131,6 +136,9 @@ def spawn_update_helper(helper_dir, payload_file):
 
 
 def _download(info):
+    if sys.platform == 'darwin':
+        from updater_mac import download
+        return download(info)
     import tempfile
     stage = None
     helper_started = False
@@ -143,20 +151,11 @@ def _download(info):
                    'previous_version': __import__('version').__version__}
         (stage / 'transaction.json').write_text(json.dumps(payload), encoding='utf-8')
         archive = stage / 'package.zip'
-        request = urllib.request.Request(info['download_url'], headers={'User-Agent': 'LaoyuSync'})
-        digest = hashlib.sha256()
-        received = 0
-        with urllib.request.urlopen(request, timeout=30) as response, archive.open('wb') as out:
-            total = int(response.headers.get('Content-Length', 0))
-            while chunk := response.read(256 * 1024):
-                received += len(chunk)
-                if received > 256 * 1024**2:
-                    raise ValueError('下载包过大')
-                digest.update(chunk)
-                out.write(chunk)
-                progress('downloading', min(85, int(received / total * 85)) if total else 0, f'已下载 {received // 1024} KB')
+        progress('downloading', 0, '正在比较下载线路（每条最多测速 16 KB）')
+        download_routes.download(info['download_url'], archive, info['sha256'],
+                                 lambda percent, message: progress('downloading', percent, message))
         progress('verifying', 88, '正在校验更新包')
-        if digest.hexdigest() != info['sha256'].lower():
+        if hashlib.sha256(archive.read_bytes()).hexdigest() != info['sha256'].lower():
             raise ValueError('下载校验失败，未执行更新，请重新下载')
         replacement = stage / 'new'
         replacement.mkdir()
@@ -192,6 +191,9 @@ def _download(info):
 
 def apply_update(payload_file):
     """Run from a separate full executable copy, retaining the original until health ACK."""
+    if sys.platform == 'darwin':
+        from updater_mac import apply_update as apply_mac
+        return apply_mac(payload_file)
     import ctypes
     payload = json.loads(Path(payload_file).read_text(encoding='utf-8'))
     target = Path(payload['target']).resolve()
@@ -272,6 +274,8 @@ def apply_update(payload_file):
                     except OSError:
                         pass
                     write_result({'ok': True, 'version': payload['version'], 'backup': str(backup)})
+                    from update_cleanup import register_backup
+                    register_backup(target, backup, Path(payload['data']), payload['version'])
                     return
             if child.poll() is not None:
                 break
