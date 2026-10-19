@@ -83,7 +83,12 @@ class Bridge:
             else:
                 window.maximize()
         elif action == 'close':
-            window.destroy()
+            # Return the JS bridge result before destroying WKWebView. Otherwise
+            # pywebview's result callback can wait forever on a closed renderer,
+            # leaving a non-daemon bridge thread alive after the window closes.
+            closer = threading.Timer(.2, window.destroy)
+            closer.daemon = True
+            closer.start()
         else:
             raise ValueError('未知窗口操作')
 
