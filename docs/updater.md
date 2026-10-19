@@ -1,6 +1,6 @@
 # 自身更新
 
-现状：0.3.13 候选；Windows 与 Mac 分平台更新事务，最终结果见 standards-remediation.md。
+现状：0.3.13 已正式发布；Windows 与 Mac 分平台更新事务，最终结果见 standards-remediation.md。
 负责人：捞鱼工作室。
 最后更新时间：2026-10-19。
 

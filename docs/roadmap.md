@@ -1,3 +1,15 @@
+## 2026-10-19 0.3.13 正式发行与八项缺口关闭
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.13 。固定运行时提交737d349b901c433a89cc62d781c4889601383470；构建39199403829两端成功，发行39199961925完成原始资产上传及公网全量回读。Windows 179项通过，Mac 169项通过/10项平台专用跳过。Windows完整包真实目录交换/JS故障回滚保留身份和数据；最终CI包可见窗口、反馈渠道、小鱼和退出通过。Mac原始ditto ZIP中文文件名、内部链接、codesign校验，以及真实冻结.app成功更新/JS故障回滚、可见ACK、小鱼、退出和身份/数据保留通过。回归发现并修复了中文ZIP名称解码与JS桥关闭窗口后线程等待问题。
+
+不可变资产：Windows ZIP SHA256 `27f0e2a1a5fe93a1f2c89e077cd49fc1f2ff2ddb3417c592bd1b2febd2ec9667`；Windows安装器 `a62f509bd4727d71fa250a9b25dbd2aa157cbeb141b38e591500eefb64ff36cd`；Mac arm64 ZIP `a69782da9205cf4137236946480ad329ee21920c417685a80af66171843c294a`。SHA256SUMS与分平台version.json随发行公开。CI原始字节、Release digest和公开URL全量回读一致后，才同步源码根正式清单和描述文件。
+
+启动器元数据：私有Windows权威分支提交2957c26796395f34cb95279f1ae68ad8384265b4；Mac权威分支提交8b5df3d5ebbc0088e9c7bea8995c97882885626c。只更新同步助手的真实备用资源与接入记录，其他产品记录不变，不重新发行软件中心。Windows原始ZIP严格适配检查37项全过（含只读真实自动安装识别；该识别项不冒充本机原安装已升级）。实际软件中心0.8.16隔离副本通过真实界面确认最新发行、下载SHA、自动解压和缓存清理；保留该实际自动关联状态重开中心后点击真实“打开”按钮，0.3.13正式原包的可见窗口、版本、反馈渠道及引擎就绪通过，随后正常关闭。中心测试只在临时副本加入记录/测试调度钩子，未改变生产下载、校验、准备和打开处理器，未改用户的中心设置或原同步实例。
+
+独立Kimi两尺寸回归：实际门槛评价弹窗、直达建议与评价、反馈配置可用、真实日志预览、select主题及刷新免打扰通过；未发送外部反馈。开发Skill校验通过。证据统一位于verification/standards-remediation：local-tests.log、macos-final、windows-native、released/public-readback.json、launcher-final.json、ui-observer.md、center-acceptance-5（真实公网下载和准备记录）、center-acceptance-7（重开及真实点击/可见窗口确认）。此前失败夹具保留，不把它们当作通过证据。
+
+本轮八项实现与对应验收已经闭合。保留边界：Mac旧版首次手动安装，未公证且不发行Intel包；Mac真实应用测试在GitHub Mac runner执行，未代替用户Mac设备验收。更新事务注入采用同版本真实完整包，未宣称所有旧客户端已完成公网跨版本自动升级；旧helper或无更新器客户端按迁移说明处理。TUN/全局VPN仍须配置分流并检查连接记录；未发送真实企业微信测试消息。真实用户同步项目、配置及设备身份未改。
+
 ## 2026-10-19 0.3.12 同步优先直连候选
 
 设置 / 关于新增持久化的同步网络偏好；仅本助手启动的同步引擎清除代理环境变量，外部引擎保留，显示重启待应用。TUN／全局 VPN 不承诺自动绕过；提供 Windows/Mac 的 Clash/Mihomo、Surge、sing-box 配置片段与连接记录核实说明。更新和反馈网络不改，正式更新清单不提前切换。详情 docs/sync-network.md。

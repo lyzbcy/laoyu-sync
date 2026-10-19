@@ -1,6 +1,6 @@
 # 构建与交付
 
-现状：0.3.13 候选；两端反馈配置为发行必需项。
+现状：0.3.13 已正式发布；两端反馈配置为发行必需项。
 负责人：捞鱼工作室。
 最后更新时间：2026-10-19。
 
@@ -10,7 +10,7 @@
 
 准备私有环境 LAOYU_FEEDBACK_WEBHOOK，运行 python scripts/prepare_feedback.py；配置只生成 .build-cache/feedback-channel.json，不入 Git。spec 默认读取该文件，也支持 LAOYU_FEEDBACK_CONFIG_PATH；正式配置缺失或无效时拒绝构建。只有显式开发环境 LAOYU_ALLOW_UNCONFIGURED_FEEDBACK=1 可制作无渠道调试包，这类包不得替代正式发行。CI 使用同名 Repository Secret，不在日志输出地址。
 
-python -m PyInstaller --noconfirm LaoyuSync.spec 之后，Windows 使用 verify_windows.py（不得允许未配置渠道）、package.py 和 Inno Setup；Mac 使用 verify_macos.py 验真实 .app 的可见健康、宠物开关、成功更新和故障回退，再 ditto 打包，package_mac.py 检查版本/反馈文件并输出平台元数据。
+python -m PyInstaller --noconfirm LaoyuSync.spec 之后，Windows 使用 verify_windows.py（不得允许未配置渠道）、package.py 和 Inno Setup；Mac 先 ditto 打包、package_mac.py 检查版本/反馈文件并输出平台元数据，再用 verify_macos.py 解压原始 ZIP、验证签名，并验真实 .app 的可见健康、宠物开关、成功更新和故障回退。
 
 最终包必须完整、哈希固定；Windows ZIP 主 exe 在根目录，Mac ZIP 保留 .app 布局/执行权限/内部符号链接。根 version.json 只在公开资产全量哈希核验后更新，顶层保留旧客户端 Windows 字段，并增加 platforms 对应 Mac 资产。签名/公证状态与原策略一致，不能把 ad-hoc codesign 校验误称 Apple 公证。
 
