@@ -169,6 +169,15 @@ def cleanup_finished():
 BACKUP_RETENTION_SECONDS = 24 * 3600
 
 
+def _path_in_command(path, command):
+    resolved = str(Path(path).resolve()).lower()
+    references = {str(path).lower(), resolved}
+    # ps may report /var or /tmp while realpath gives /private/var or /private/tmp.
+    if resolved.startswith('/private/'):
+        references.add(resolved[len('/private'):])
+    return any(reference in command.lower() for reference in references)
+
+
 def _backup_binary(folder):
     return folder / ('Contents/MacOS/LaoyuSync' if (folder / 'Contents').is_dir() else 'LaoyuSync.exe')
 
@@ -250,7 +259,7 @@ def cleanup_backups(parent, data, running_version, snapshot=process_snapshot, no
             for process in snapshot():
                 command = process.get('CommandLine') or ''
                 executable = process.get('ExecutablePath') or ''
-                if str(backup).lower() in command.lower() or (executable and Path(executable).resolve().is_relative_to(backup)):
+                if _path_in_command(backup, command) or (executable and Path(executable).resolve().is_relative_to(backup)):
                     in_use = True
             if in_use:
                 continue
