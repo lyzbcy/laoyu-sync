@@ -1,19 +1,19 @@
 {
-  "version": "0.3.13",
-  "notes": "同步优先直连；补齐反馈、Mac一键更新与回退、下载线路、旧版清理和评价入口。",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.13/laoyu-sync-0.3.13-win-x64.zip",
-  "sha256": "27f0e2a1a5fe93a1f2c89e077cd49fc1f2ff2ddb3417c592bd1b2febd2ec9667",
-  "sizeBytes": 41947466,
+  "version": "0.3.14",
+  "notes": "同步直连一键自检与外部引擎一键接管，直连应用状态一眼可见。",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-win-x64.zip",
+  "sha256": "38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa",
+  "sizeBytes": 41964002,
   "platforms": {
     "win-x64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.13/laoyu-sync-0.3.13-win-x64.zip",
-      "sha256": "27f0e2a1a5fe93a1f2c89e077cd49fc1f2ff2ddb3417c592bd1b2febd2ec9667",
-      "sizeBytes": 41947466
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-win-x64.zip",
+      "sha256": "38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa",
+      "sizeBytes": 41964002
     },
     "macos-arm64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.13/laoyu-sync-0.3.13-macos-arm64.zip",
-      "sha256": "a69782da9205cf4137236946480ad329ee21920c417685a80af66171843c294a",
-      "sizeBytes": 36517440
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-macos-arm64.zip",
+      "sha256": "25f93375d7c1745fb0b75d5df363ca06f8eb0e71cf47906e58f76480142f7c84",
+      "sizeBytes": 36531831
     }
   }
 }
