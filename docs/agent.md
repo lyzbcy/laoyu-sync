@@ -9,6 +9,7 @@
 - roadmap.md：目标、验收证据、交付缺口。
 - feedback.md：反馈入口、脱敏日志ZIP与企业微信直发确认。
 - requirements-audit.md：软件开发规范逐项审计，完成证据与缺口。
+- sync-network.md：同步优先直连、代理分流规则、系统 VPN 边界与隔离验收。
 - network.md：Tailscale只读识别、既有Syncthing配置接入与状态边界。
 - tech.md：资源/用户数据/引擎分离与鉴权。
 - updater.md：每日检查、可信下载、哈希、重启/回滚；修改更新器必读。

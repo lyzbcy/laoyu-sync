@@ -335,7 +335,13 @@ input[type="checkbox"] { accent-color: var(--green); width: auto; }
 .event.warn { color: #8A5A00; } .event.error { color: var(--red); }
 
 /* ================= 关于 ================= */
-.about { display: flex; justify-content: center; }
+.about { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+.sync-network-card { width: 100%; max-width: 560px; }
+.sync-network-card label { display: block; margin: 12px 0 8px; }
+.sync-network-card select { width: 100%; max-width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: white; color: inherit; font: inherit; }
+.sync-network-card summary { cursor: pointer; line-height: 1.6; }
+.sync-network-card p { line-height: 1.7; overflow-wrap: anywhere; }
+.sync-network-card .btn { margin-top: 10px; }
 .about-card { max-width: 560px; width: 100%; text-align: center; position: relative; }
 .avatar { width: 72px; height: 72px; border-radius: 50%; border: 3px solid var(--green-soft); box-shadow: 0 4px 14px rgba(46, 125, 50, .18); }
 .about-head { margin: 8px 0 4px; }

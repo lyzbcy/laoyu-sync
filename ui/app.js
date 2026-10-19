@@ -818,6 +818,7 @@ async function loadMeta() {
     HAS_PICKER = !!meta.has_window_picker;
     $("petEnabled").checked = meta.pet_enabled;
     $("petSetting").classList.toggle("hidden", !meta.pet_supported);
+    renderSyncNetwork(meta.sync_network);
     $("expertLink").dataset.external = meta.engine_url;
     if (meta.review_due) showReview();
   } catch (e) { /* ignore */ }
@@ -839,6 +840,34 @@ $("petEnabled").onchange = async e => {
   try { await api("POST", "/api/settings", {pet_enabled: enabled}); }
   catch(err) { control.checked = !enabled; toast(friendly(err)); }
   finally { control.disabled = false; }
+};
+function renderSyncNetwork(preference) {
+  if (!preference) return;
+  $("syncNetworkMode").value = preference.mode;
+  $("syncNetworkStatus").textContent = preference.note + (preference.mode === 'direct' ? ' ' + preference.caveat : '');
+}
+$("syncNetworkMode").onchange = async e => {
+  const control = e.target;
+  control.disabled = true;
+  try {
+    const result = await api('POST', '/api/settings', {sync_network_mode: control.value});
+    renderSyncNetwork(result.sync_network);
+    toast('同步网络设置已保存');
+  } catch (err) {
+    toast(friendly(err));
+    try { renderSyncNetwork(await api('GET', '/api/network-preference')); } catch (_) { /* keep error visible */ }
+  } finally { control.disabled = false; }
+};
+$("btnSyncRules").onclick = async () => {
+  try {
+    const rules = await api('GET', '/api/network-rules?format=' + encodeURIComponent($("syncRuleFormat").value));
+    infoModal('同步直连规则 · ' + rules.name,
+      `<p>${esc(rules.help)}</p><textarea id="syncRulesText" readonly rows="9" style="width:100%">${esc(rules.text)}</textarea><button id="btnCopySyncRules" class="btn small">复制规则</button><p class="small mut">这是配置片段，请加入对应配置段，保存并重新加载代理配置；使用规则分流模式。规则是否命中请以代理软件连接记录为准。</p>`);
+    $("btnCopySyncRules").onclick = async () => {
+      if (await copyText(rules.text)) toast('规则已复制，添加并加载后请检查连接记录');
+      else { $("syncRulesText").focus(); $("syncRulesText").select(); toast('请手动复制选中的规则'); }
+    };
+  } catch (err) { toast(friendly(err)); }
 };
 window.addEventListener('focus', loadMeta);
 $("btnLogs").onclick = async () => { try { const d = await api("GET", "/api/diagnostics"); if (await copyText(d.text)) toast("诊断日志已复制；可能包含路径和设备名称，请检查后再分享"); else infoModal("请手动复制诊断日志", `<p>自动复制失败，请选中下面内容复制；分享前检查路径和设备名称。</p><textarea rows="12" style="width:100%">${esc(d.text)}</textarea>`); } catch(e) { toast(friendly(e)); } };
