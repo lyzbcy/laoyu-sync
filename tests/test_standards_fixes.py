@@ -164,6 +164,23 @@ class MacArchiveTests(unittest.TestCase):
                     updater_mac.safe_extract(archive, target, '9.0.0')
                 self.assertFalse((Path(directory) / 'outside').exists())
 
+    def test_ditto_utf8_names_without_language_flag_keep_signed_resource_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive = self.archive(directory, lambda bundle: bundle.writestr(
+                'LaoyuSync.app/Contents/Resources/中文.png', b'signed asset'))
+            raw = bytearray(archive.read_bytes())
+            # ditto stores UTF-8 bytes while omitting general-purpose bit 11.
+            for signature, offset in ((b'PK\x03\x04', 6), (b'PK\x01\x02', 8)):
+                start = 0
+                while (index := raw.find(signature, start)) != -1:
+                    flags = int.from_bytes(raw[index+offset:index+offset+2], 'little') & ~0x800
+                    raw[index+offset:index+offset+2] = flags.to_bytes(2, 'little')
+                    start = index + 4
+            archive.write_bytes(raw)
+            target = Path(directory) / 'new'; target.mkdir()
+            app = updater_mac.safe_extract(archive, target, '9.0.0')
+            self.assertEqual((app / 'Contents/Resources/中文.png').read_bytes(), b'signed asset')
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -49,8 +49,16 @@ def safe_extract(archive, target, expected_version):
         if len(bundle.infolist()) > 5000 or sum(i.file_size for i in bundle.infolist()) > 512 * 1024**2:
             raise ValueError('Mac 更新包超过安全大小限制')
         for entry in bundle.infolist():
-            parts = PurePosixPath(entry.filename).parts
-            if (not parts or entry.filename.startswith('/') or '\\' in entry.filename
+            # ditto writes UTF-8 names without the ZIP UTF-8 flag. Recover the
+            # original bytes before validating paths, including Chinese assets.
+            filename = entry.filename
+            if not entry.flag_bits & 0x800:
+                try:
+                    filename = filename.encode('cp437').decode('utf-8')
+                except UnicodeError:
+                    pass
+            parts = PurePosixPath(filename).parts
+            if (not parts or filename.startswith('/') or '\\' in filename
                     or any(p in ('.', '..') or ':' in p for p in parts)):
                 raise ValueError('Mac 更新包含不安全路径')
             if parts[0] == '__MACOSX':
