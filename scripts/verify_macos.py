@@ -7,9 +7,12 @@ import secrets
 import shutil
 import signal
 import socket
+import plistlib
+import platform
 import subprocess
 import time
 import urllib.request
+import sys
 
 
 def free_port():
@@ -154,5 +157,18 @@ if __name__ == '__main__':
     parser.add_argument('--profile', default='verification/mac-native')
     args = parser.parse_args()
     bundle, profile = Path(args.bundle).resolve(), Path(args.profile).resolve()
+    # Exercise the real release ZIP and internal-link extraction before launching it.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'core'))
+    import updater_mac
+    info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
+    version = info['CFBundleShortVersionString']
+    archive = bundle.parent / f'laoyu-sync-{version}-macos-{platform.machine()}.zip'
+    extracted = profile / 'archive-check'
+    extracted.mkdir(parents=True)
+    bundle = updater_mac.safe_extract(archive, extracted, version)
+    subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)],
+                   check=True, capture_output=True, timeout=30)
+    (profile / 'archive.json').write_text(json.dumps(dict(ok=True, archive_validated=True,
+        internal_links_validated=True, codesign_verified=True, version=version)))
     scenario(bundle, profile / 'success')
     scenario(bundle, profile / 'rollback', fault=True)
