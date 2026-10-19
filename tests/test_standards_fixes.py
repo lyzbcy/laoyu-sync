@@ -13,12 +13,13 @@ import unittest
 from unittest.mock import Mock, patch
 import zipfile
 
+root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(root / 'core'))
 import download_routes
 import update_cleanup
 import updater_mac
 import version
 
-root = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('prepare_feedback', root / 'scripts/prepare_feedback.py')
 prepare_feedback = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(prepare_feedback)
