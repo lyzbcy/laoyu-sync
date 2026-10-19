@@ -160,7 +160,7 @@ class MacWindowTests(unittest.TestCase):
         response = Mock(status=200)
         response.__enter__ = Mock(return_value=response)
         response.__exit__ = Mock(return_value=False)
-        with patch.object(pet.urllib.request, 'urlopen', return_value=response) as request:
+        with patch.object(pet, 'api_open', return_value=response) as request:
             pet.close_pet()
         import json
         self.assertEqual(json.loads(request.call_args.args[0].data), {'pet_enabled': False})

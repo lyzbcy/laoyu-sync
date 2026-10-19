@@ -1,8 +1,18 @@
-## 2026-10-19 0.3.11 同步优先直连候选
+## 2026-10-19 0.3.12 同步优先直连候选
 
 设置 / 关于新增持久化的同步网络偏好；仅本助手启动的同步引擎清除代理环境变量，外部引擎保留，显示重启待应用。TUN／全局 VPN 不承诺自动绕过；提供 Windows/Mac 的 Clash/Mihomo、Surge、sing-box 配置片段与连接记录核实说明。更新和反馈网络不改，正式更新清单不提前切换。详情 docs/sync-network.md。
 
-新增 8 项隔离测试，完整 121 项通过；真实双引擎在继承 SOCKS 变量环境中同步 1 MiB，SHA-256 一致、测试代理零连接，仅代表应用代理环境与局域网验证。Kimi WebBridge 验证两尺寸设置、保存后提示、三种规则和剪贴板失败后的手动复制。修复启动前元数据导致设置页状态滞留，按同步快照实时更新网络应用状态。Windows 0.3.11 冻结候选主窗口、renderer/engine ACK、小精灵开关和正常退出已验证；最终构建与两端 CI 状态见候选 PR。本机测试目录 verification/sync-network-0310、network-ui-0310、network-native-0311。不把测试环境绕过当作粉丝的 TUN 路由验证，不改真实同步项目。
+新增 8 项隔离测试，完整 163 项通过；真实双引擎在继承 SOCKS 变量环境中同步 1 MiB，SHA-256 一致、测试代理零连接，仅代表应用代理环境与局域网验证。Kimi WebBridge 验证两尺寸设置、保存后提示、三种规则和剪贴板失败后的手动复制。修复启动前元数据导致设置页状态滞留，按同步快照实时更新网络应用状态。Windows 冻结候选主窗口、renderer/engine ACK、小精灵开关和正常退出已验证；最终构建与两端 CI 状态见候选 PR。本机测试目录 verification/sync-network-0310、network-ui-0310、network-native-0311。不把测试环境绕过当作粉丝的 TUN 路由验证，不改真实同步项目。
+
+## 2026-10-19 0.3.11 精灵回环直连与状态分类正式发布
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.11 。运行时提交 b5d4bc3468bf0a44f4bb09c191b96e303fb94062，固定 CI https://github.com/lyzbcy/laoyu-sync/actions/runs/39193880457 两端成功。完整 155 项测试：Windows 155 项通过、0 项跳过；Mac 145 项通过、10 项平台专用跳过。新增 42 项隔离回归验证死代理、NO_PROXY、IPv4/localhost/IPv6、外部 HTTP/HTTPS 代理保留、回环鉴权不发代理、拒绝重定向、配置路径/XML及错误分类。全部使用合成凭据、临时目录或本机模拟服务，不访问用户同步身份；完整测试 bootstrap 同时隔离 HOME/USERPROFILE/LOCALAPPDATA/APPDATA，避免遗留兼容函数读取开发机配置。
+
+精灵的状态、关闭设置与手动启动引擎三处请求复用现有 stmanager.api_open；不设置系统/进程全局 NO_PROXY、不替换全局 opener，外部检查与更新下载沿用代理。网关鉴权失败、连接中断或响应异常显示助手通信问题，保留引擎未知状态；后端明确报告的停止、启动失败、暂停、同步与完成状态保持。未借此认定任一用户机器的实际进程环境或源码缺失原因。
+
+Windows 原始 CI 包可见窗口、renderer/engine ACK、小精灵开关与退出清理通过。Windows EXE/安装器 ProductVersion、Mac Info.plist 均为 0.3.11；Mac Mach-O arm64 核验通过。两端冻结 pet 模块的活动 poll、关闭与启动请求字节码均使用 api_open，网关错误分类也存在；没有仅凭 UI 资源推断核心补丁入包。Windows ZIP/安装器/Mac arm64 ZIP及 SHA256SUMS-0.3.11.txt 四项公开，CI原始资产、GitHub Release digest与公开URL完整回读SHA-256一致，正式 version.json 在回读后切换。
+
+本轮 Mac 无用户设备实机安装/GUI验收，不能据 CI 宣称用户设备已经修好或升级。Windows未代码签名、Mac未公证，沿用既有策略，不发行Intel Mac包。未自动升级任何用户电脑，未修改运行同步实例、系统代理或原有未提交源码目录。启动器描述仅同步本产品真实包记录，不宣称软件中心目录已更新。验收日志/身份配置不提交公开仓库。
 
 ## 2026-10-19 0.3.10 更新状态界面修复正式发布
 

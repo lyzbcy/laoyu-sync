@@ -19,6 +19,7 @@ import sys
 import threading
 import time
 import traceback
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -27,6 +28,7 @@ from pathlib import Path
 
 import tkinter as tk
 import config
+from stmanager import api_open
 
 TRANS = "#010203"          # 透明色（小精灵不会用到这个颜色）
 _FONT_NAME = "PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei UI"
@@ -290,7 +292,7 @@ def close_pet():
     request = urllib.request.Request(_gateway() + '/api/settings', data=body,
         headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'}, method='POST')
     try:
-        with urllib.request.urlopen(request, timeout=10) as response:
+        with api_open(request, timeout=10) as response:
             if response.status != 200:
                 raise RuntimeError('无法关闭小精灵')
     except Exception as error:
@@ -410,7 +412,7 @@ class PetApp:
     def manual_start(self):
         request = urllib.request.Request(_gateway() + '/api/engine/start', data=b'{}', headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'}, method='POST')
         try:
-            urllib.request.urlopen(request, timeout=3).close()
+            api_open(request, timeout=3).close()
         except Exception:
             pass
 
@@ -598,6 +600,11 @@ class PetApp:
             return
         network = snap.get('network', {})
         lines = ['捞鱼 · 同步陪伴', '● Tailscale 网络已就绪' if network.get('connected') else '○ 网络：' + network.get('note', '正在识别')]
+        if snap.get('gateway_error'):
+            _, title, detail, _, _ = aggregate(snap)
+            lines.extend([title, detail])
+            self.panel_label.config(text='\n'.join(lines))
+            return
         if not snap.get('folders'):
             setup = snap.get('setup', {})
             lines.extend([setup.get('title', '正在读取同步项目'), setup.get('detail', ''), '单击收起 · 双击接入项目'])
@@ -810,18 +817,28 @@ def _gateway():
 def poll_once():
     try:
         req = urllib.request.Request(_gateway() + '/api/status', headers={'X-Token': config.get('token')})
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with api_open(req, timeout=10) as resp:
             snap = json.load(resp)
         snap['api_ok'] = snap['syncthing']['api_ok']
         snap['process_running'] = snap['syncthing']['running']
         snap['uptime'] = snap['syncthing'].get('uptime', 0)
         snap['folder_errors'] = {}
         return snap
+    except urllib.error.HTTPError as exc:
+        failure = 'unauthorized' if exc.code in (401, 403) else 'http'
+    except (ValueError, KeyError, TypeError):
+        failure = 'invalid_response'
     except Exception:
-        return {'api_ok': False, 'process_running': False}
+        failure = 'unavailable'
+    # A failed assistant request provides no evidence about the engine process.
+    return {'api_ok': False, 'process_running': None, 'gateway_error': failure}
 
 _original_aggregate = aggregate
 def aggregate(snap):
+    if snap.get('gateway_error'):
+        title = {'unauthorized': '助手访问被拒绝', 'invalid_response': '助手状态不可读'}.get(
+            snap['gateway_error'], '助手连接中断')
+        return 'error', title, '无法确认引擎状态，双击检查', 0, 0
     if not snap.get('api_ok') and snap.get('syncthing', {}).get('startup', {}).get('phase') == 'failed':
         return 'error', '引擎未就绪', '双击查看原因并重试', 0, 0
     if snap.get('api_ok'):
