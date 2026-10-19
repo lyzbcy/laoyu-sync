@@ -166,8 +166,8 @@ if __name__ == '__main__':
     extracted = profile / 'archive-check'
     extracted.mkdir(parents=True)
     bundle = updater_mac.safe_extract(archive, extracted, version)
-    subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)],
-                   check=True, capture_output=True, timeout=30)
+    subprocess.run(['codesign', '--verify', '--deep', '--strict', '--verbose=4', str(bundle)],
+                   check=True, timeout=30)
     (profile / 'archive.json').write_text(json.dumps(dict(ok=True, archive_validated=True,
         internal_links_validated=True, codesign_verified=True, version=version)))
     scenario(bundle, profile / 'success')
