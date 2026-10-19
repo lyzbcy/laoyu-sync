@@ -290,6 +290,7 @@ function renderCapsule() {
 
 function renderConnections() {
   const s = LAST_STATUS, n = s.network || {state: 'checking', peers: []};
+  renderSyncNetwork(s.sync_network);
   const titles = {connected: 'Tailscale 已连接', not_installed: '使用现有网络同步',
     needs_login: 'Tailscale 等待登录', needs_auth: 'Tailscale 等待授权', stopped: 'Tailscale 已暂停',
     starting: 'Tailscale 正在连接', unavailable: 'Tailscale 状态暂时无法读取', checking: '正在识别已有连接'};

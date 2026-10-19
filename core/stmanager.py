@@ -502,6 +502,7 @@ class STManager:
 
     def status(self):
         snap = {
+            "sync_network": network_preference(),
             "syncthing": {"running": True, "api_ok": False,
                           "version": "", "uptime": 0},
             "folders": [], "devices": [],

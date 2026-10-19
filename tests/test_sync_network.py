@@ -70,6 +70,16 @@ class SyncNetworkTests(unittest.TestCase):
             spawn.assert_not_called()
             stop.assert_not_called()
 
+    def test_polling_reports_current_application_state_even_before_engine_ready(self):
+        mgr = stmanager.STManager.__new__(stmanager.STManager)
+        mgr.client = Mock()
+        mgr.client.ready.return_value = False
+        with tempfile.TemporaryDirectory() as tmp, patch('stmanager.engine_home', return_value=Path(tmp)), patch('stmanager.read_gui_config', return_value=('http://127.0.0.1:9', 'isolated')), patch('stmanager.network_preference') as current:
+            current.return_value = {'state': 'restart_required'}
+            self.assertEqual(mgr.status()['sync_network']['state'], 'restart_required')
+            current.return_value = {'state': 'applied'}
+            self.assertEqual(mgr.status()['sync_network']['state'], 'applied')
+
     def test_rules_cover_both_platforms_and_do_not_bypass_other_apps(self):
         for kind in ('clash', 'singbox', 'surge'):
             rule = sync_network.bypass_rules(kind)
