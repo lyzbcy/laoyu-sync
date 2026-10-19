@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 
 from assemble_release import assemble, __version__
@@ -24,9 +25,16 @@ def gh(*args):
 
 
 def release_for_tag(tag):
-    # A newly created draft may have no Git tag yet, so /releases/tags is 404.
-    releases = json.loads(gh('api', f'repos/{REPO}/releases?per_page=100'))
-    return next(release for release in releases if release['tag_name'] == tag)
+    # A newly created draft may have no Git tag yet, so /releases/tags is 404,
+    # and the list API itself can lag a fresh create by seconds (0.3.14 hit
+    # this: draft created, listing still empty, StopIteration). Retry briefly.
+    for attempt in range(6):
+        releases = json.loads(gh('api', f'repos/{REPO}/releases?per_page=100'))
+        found = next((release for release in releases if release['tag_name'] == tag), None)
+        if found:
+            return found
+        time.sleep(5)
+    raise ValueError('Release not visible after create: ' + tag)
 
 
 def validate():
