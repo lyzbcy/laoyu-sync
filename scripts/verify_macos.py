@@ -40,7 +40,29 @@ def matching_pids(bundle):
             and parts[1].startswith(executable)]
 
 
+def close_marker(bundle):
+    return bundle / 'Contents/Resources/ui/__verification_close__.json'
+
+
+def attach_close_trigger(bundle):
+    # Fixture-only UI hook invokes the same native close action as the real button.
+    # It is never added to the distributable source bundle.
+    path = bundle / 'Contents/Resources/ui/app.js'
+    with path.open('a') as stream:
+        stream.write('''\nsetInterval(async () => { try {
+          const response = await fetch('/__verification_close__.json', {cache:'no-store'});
+          if (response.ok && (await response.json()).close && window.pywebview)
+            await window.pywebview.api.window_action('close');
+        } catch (_) {} }, 500);\n''')
+
+
 def stop_bundle(bundle):
+    close_marker(bundle).write_text('{"close":true}')
+    try:
+        wait_for(lambda: not matching_pids(bundle), timeout=15)
+        return
+    except TimeoutError:
+        pass
     for pid in matching_pids(bundle):
         try:
             os.kill(pid, signal.SIGTERM)
@@ -53,6 +75,7 @@ def scenario(bundle, profile, fault=False):
     profile.mkdir(parents=True, exist_ok=True)
     target = profile / 'LaoyuSync.app'
     shutil.copytree(bundle, target, symlinks=True)
+    attach_close_trigger(target)
     data = profile / 'data'; data.mkdir()
     # No update checks or default pet on this fixture; the channel still comes from the package.
     (data / 'config.json').write_text(json.dumps({'update_manifest_url': '', 'pet_enabled': False}))
@@ -83,6 +106,7 @@ def scenario(bundle, profile, fault=False):
         (stage / 'new').mkdir()
         replacement = stage / 'new/LaoyuSync.app'
         shutil.copytree(bundle, replacement, symlinks=True)
+        attach_close_trigger(replacement)
         shutil.copytree(bundle, stage / 'helper.app', symlinks=True)
         if fault:
             (replacement / 'Contents/Resources/ui/app.js').write_text('throw new Error("isolated rollback fixture");')
@@ -93,7 +117,11 @@ def scenario(bundle, profile, fault=False):
         helper = subprocess.Popen([str(stage / 'helper.app/Contents/MacOS/LaoyuSync'), '--apply-update', str(transaction)],
             env=env, cwd=stage, start_new_session=True)
         wait_for(lambda: (stage / 'helper-ready.json').exists())
-        old.terminate(); old.wait(timeout=20)
+        close_marker(target).write_text('{"close":true}')
+        old.wait(timeout=30)
+        backup = wait_for(lambda: next(profile.glob('LaoyuSync.app.previous-*'), None))
+        # A restored fixture must stay open until its own end-of-test close action.
+        close_marker(backup).unlink(missing_ok=True)
         receipt = data / 'update-result.json'
         outcome = wait_for(lambda: json.loads(receipt.read_text()) if receipt.exists() else None, timeout=130)
         assert outcome['ok'] is not fault, outcome

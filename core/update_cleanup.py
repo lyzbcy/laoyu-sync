@@ -83,6 +83,15 @@ def cleanup_stage(folder, parent, snapshot=process_snapshot, now=time.time):
             command = (p.get('CommandLine') or '').lower()
             exe = p.get('ExecutablePath') or ''
             stage_refs = {str(folder).lower(), str(raw_folder).lower()}
+            expected = Path(tx['target']) / ('Contents/MacOS/LaoyuSync' if tx.get('platform') == 'darwin' else 'LaoyuSync.exe')
+            known_installed = ((exe and Path(exe).resolve() == expected.resolve())
+                               or command.lstrip('"').startswith(str(expected).lower()))
+            if known_installed:
+                # The healthy installed app retains its ACK argument, not a stage dependency.
+                # Its helper PID has already exited before this receipt can be collected.
+                for reference in stage_refs:
+                    ack = str(Path(reference) / 'healthy.json').lower()
+                    command = command.replace('--upgrade-ack "' + ack + '"', '').replace('--upgrade-ack ' + ack, '')
             if any(ref and ref in command for ref in stage_refs) or (exe and Path(exe).resolve().is_relative_to(folder)):
                 return False
         # Preserve transaction and completion evidence outside the directory being removed.
@@ -185,12 +194,13 @@ def _backup_binary(folder):
 def register_backup(target, backup, data, version):
     """Only a successful renderer+engine health transaction calls this."""
     try:
+        backup_alias = str(Path(backup).absolute())
         target, backup, data = Path(target).resolve(), Path(backup).resolve(), Path(data).resolve()
         if (backup.parent != target.parent or not backup.name.startswith(target.name + '.previous-')
                 or data.is_relative_to(backup) or data.is_relative_to(target)):
             return False
         receipt = dict(schema=1, product='laoyu-sync', target=str(target), backup=str(backup),
-            data=str(data), version=version, healthy=True, finished_at=time.time(),
+            data=str(data), version=version, healthy=True, finished_at=time.time(), backup_alias=backup_alias,
             target_hash=hashlib.sha256(_backup_binary(target).read_bytes()).hexdigest(),
             backup_hash=hashlib.sha256(_backup_binary(backup).read_bytes()).hexdigest())
         directory = data / 'update-backups'
@@ -259,7 +269,7 @@ def cleanup_backups(parent, data, running_version, snapshot=process_snapshot, no
             for process in snapshot():
                 command = process.get('CommandLine') or ''
                 executable = process.get('ExecutablePath') or ''
-                if _path_in_command(backup, command) or (executable and Path(executable).resolve().is_relative_to(backup)):
+                if _path_in_command(receipt.get('backup_alias', backup), command) or (executable and Path(executable).resolve().is_relative_to(backup)):
                     in_use = True
             if in_use:
                 continue
