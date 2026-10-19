@@ -1,4 +1,10 @@
-## 2026-10-19 0.3.14 一键直连自检与引擎接管候选
+## 2026-10-19 0.3.14 一键直连自检与引擎接管正式发布
+
+发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.14 。运行时提交 157e17d（workflow_dispatch 构建 39220310638 双端成功，含 Windows/Mac 原生门禁），发布 run 39221259148 完成五资产上传与公开全量回读（证据 release-public-evidence）。首次发布因草稿创建后 releases 列表 API 秒级延迟抛 StopIteration，修复 release_for_tag 短重试（61c1aa2）后重跑成功。不可变资产：Windows ZIP SHA256 `38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa`；Windows 安装器 `4cb29032b5a1172a0d9aadeaf6ce243f7d30ea8f004338b07b5f52e1e542c3ce`；Mac arm64 ZIP `25f93375d7c1745fb0b75d5df363ca06f8eb0e71cf47906e58f76480142f7c84`。正式根 version.json 与 launcher-adapter.json 在公开回读后切换（9018b90）。
+
+实机证据：公开 Windows ZIP 经本机 ikuuu 代理下载（直连 GitHub 超时，符合已知网络边界）SHA256 与发布一致；隔离数据目录跑公开包验证 /api/version=0.3.14、五项自检结论与实况一致、新 UI 元素随包；一键接管在真实开发版上完成端到端——计划任务引擎经优雅退出消失、小助手引擎接管（state=applied）、局域网与中继连接均从物理网卡直出。该验收不宣称已验证任何真实公网或 TUN 场景。
+
+启动器边界：launcher-adapter.json 已登记 0.3.14 真实包；对交接源码（0.10.0 统一候选）自查——产品侧（规则、便携映射、图标、真实安装识别）全过，5 项 catalog FAIL 属预期（交接 catalog 停在 0.3.13，交接文档已注明）。软件中心正处于 Mac 统一改造交接且统一修改未推送，本版不更新其 catalog/备用资源：目录登记随交接完成后进行，此前如实报告"产品已准备，当前客户端尚未支持 0.3.14"。另发现交接文档 center-unified-0.10.0-source.SHA256.txt 记录值仅 62 位（非法长度，实包 64 位且前 48 位一致，判定文档笔误），需 Mac 接手方修正后再做包校验。
 
 同步网络卡片新增「一键自检」（GET /api/network-check，core/network_check.py）：五项本地旁证——引擎归属三态及处理指引、引擎是否连本地代理端口（常见端口表 ∪ 环境代理变量指向地址，命中为 fail）、系统层接管（默认路由接口名+适配器描述 TUN/TAP 字样、198.18.0.0/15 网关、1/8+128/8 覆盖路由）、引擎公网目标与常见代理内核进程目标的交集、系统代理说明项。结论按 fail>warn>pass 聚合（info 不定级），快照失败降级 info 不冒充通过，非 Windows 连接/路由项明确报暂不支持；措辞保持"未发现痕迹/疑似"，不宣称已验证直连。设置页同步常驻三态状态条。检测只按钮触发不进轮询；后端仅标准库（tasklist/netstat/PowerShell CIM，PowerShell 输出强制 UTF-8，中文系统 TAP 字样取自 InterfaceDescription）。
 
@@ -6,7 +12,7 @@
 
 动机：0.3.12 的三态只藏在附注文字里，外部引擎场景用户无法自行判断流量是否走代理、也不知道如何退出独立引擎，需要手工 netstat/route/计划任务排查。自检把排查自动化，接管把"从原工具退出引擎"变成一键，同时保留"不自动停止外部引擎"的边界（只新增用户明确确认的主动路径）。
 
-验收：新增 tests/test_network_check.py 14 项（解析器含引号内逗号/IPv6/非 ESTABLISHED、路由标量 JSON 与中文接口名+TAP 描述、代理端口命中、交集三态、聚合定级、快照失败降级、非 Windows 不猜、API 401 与载荷，及接管三项：非回环拒绝与送达失败说明、退出轮询、端点 401/409/成功启动引擎/无外部引擎直接启动且退出失败绝不并发启动第二引擎），全套 193 项通过；真实中文 Windows（外部引擎 + iKuuuVPN 系统代理 + TAP 适配器在网）实跑与手工 netstat/route/get-adapter 结论一致：引擎归属 warn、代理端口 pass、转发痕迹 pass（ikuuu 内核与引擎公网中继目标无交集）、接管 pass（默认路由物理网卡）。接管端到端（真实退出计划任务引擎并由小助手拉起）与 UI 实机验收待正式发行前完成（惯例见 0.3.13 段）；该实跑验证旁证收集逻辑，不宣称已验证任何真实公网或 TUN 场景。
+验收：新增 tests/test_network_check.py 14 项（解析器含引号内逗号/IPv6/非 ESTABLISHED、路由标量 JSON 与中文接口名+TAP 描述、代理端口命中、交集三态、聚合定级、快照失败降级、非 Windows 不猜、API 401 与载荷，及接管三项：非回环拒绝与送达失败说明、退出轮询、端点 401/409/成功启动引擎/无外部引擎直接启动且退出失败绝不并发启动第二引擎），全套 193 项通过；真实中文 Windows（外部引擎 + iKuuuVPN 系统代理 + TAP 适配器在网）实跑与手工 netstat/route/get-adapter 结论一致：引擎归属 warn、代理端口 pass、转发痕迹 pass（ikuuu 内核与引擎公网中继目标无交集）、接管 pass（默认路由物理网卡）。
 
 ## 2026-10-19 0.3.13 正式发行与八项缺口关闭
 
