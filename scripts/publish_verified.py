@@ -5,6 +5,7 @@ The stable source manifest is deliberately updated separately after this succeed
 """
 import ast
 import hashlib
+from http.client import HTTPException
 import json
 import os
 from pathlib import Path
@@ -59,6 +60,39 @@ def upstream_recipe(revision):
         isinstance(node, ast.FunctionDef) and node.name == 'main'
         or isinstance(node, ast.Assign) and any(
             isinstance(target, ast.Name) and target.id in ('VERSION', 'BASE') for target in node.targets))]
+
+
+def public_digest(asset):
+    try:
+        with urllib.request.urlopen(asset['browser_download_url'], timeout=60) as response:
+            return hashlib.file_digest(response, 'sha256').hexdigest()
+    except (OSError, HTTPException):
+        print('Retrying through the public asset API: ' + asset['name'], flush=True)
+
+    digest = hashlib.sha256()
+    size = asset['size']
+    block = 4 * 1024 * 1024
+    for start in range(0, size, block):
+        end = min(start + block, size) - 1
+        length = end - start + 1
+        for attempt in range(3):
+            req = urllib.request.Request(f"{asset['url']}?readback={start}-{end}-{attempt}", headers={
+                'Accept': 'application/octet-stream', 'Range': f'bytes={start}-{end}',
+            })
+            try:
+                with urllib.request.urlopen(req, timeout=25) as response:
+                    chunk = response.read(length + 1)
+                    is_range = response.status == 206 and response.headers.get('Content-Range') == f'bytes {start}-{end}/{size}'
+                    is_whole = response.status == 200 and length == size
+                    if len(chunk) != length or not (is_range or is_whole):
+                        raise ValueError('Invalid public asset range')
+                    digest.update(chunk)
+                    break
+            except (OSError, HTTPException, ValueError):
+                if attempt == 2:
+                    raise
+                time.sleep(attempt + 1)
+    return digest.hexdigest()
 
 
 def validate():
@@ -137,11 +171,7 @@ def publish():
     for file in files:
         expected = hashlib.sha256(file.read_bytes()).hexdigest()
         asset = next(asset for asset in release['assets'] if asset['name']==file.name)
-        actual = hashlib.sha256()
-        with urllib.request.urlopen(asset['browser_download_url'],timeout=60) as response:
-            for chunk in iter(lambda: response.read(1024*1024), b''):
-                actual.update(chunk)
-        if actual.hexdigest() != expected or asset.get('digest') != 'sha256:'+expected:
+        if public_digest(asset) != expected or asset.get('digest') != 'sha256:'+expected:
             raise ValueError('Public readback mismatch: '+file.name)
         evidence['assets'].append(dict(name=file.name,sha256=expected,size=asset['size'],url=asset['browser_download_url']))
     evidence['ok'] = True
