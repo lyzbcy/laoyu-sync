@@ -18,9 +18,10 @@ import urllib.request
 import activity
 import config
 
-__version__ = "0.3.18"
+__version__ = "0.3.19"
 
 CHANGELOG = [
+    {"ver":"0.3.19","date":"2026-11-09","items":["更新清单连接中断后，尝试从 GitHub 官方备用接口读取"]},
     {"ver":"0.3.18","date":"2026-11-09","items":["双击桌面小精灵唤起应用窗口", "小精灵状态缩为人物内的两行标签", "设置新增 AI 助手接入提示词和本机接口说明", "修复 Mac 小精灵人物透明"]},
     {"ver":"0.3.17","date":"2026-11-09","items":["正式发布捞鱼文件夹同步新界面与桌面精灵", "自动修复扫描前重新核对当前错误、项目配置和连接", "更新安装与发布校验"]},
     {"ver":"0.3.16","date":"2026-11-09","items":["新增同步排查与安全修复，显示对端离线、文件占用和引擎原始原因", "重做设置与关于页，排查、连接、桌面与日志分组", "桌面小精灵恢复进度环，补回待机动画与白描边"]},
@@ -64,6 +65,8 @@ CHANGELOG = [
     },
 ]
 
+MANIFEST_FALLBACK_URL = 'https://api.github.com/repos/lyzbcy/laoyu-sync/contents/version.json?ref=main'
+
 
 def semver_tuple(v):
     match = re.fullmatch(r'v?(\d+)\.(\d+)\.(\d+)', str(v))
@@ -90,6 +93,25 @@ def select_asset(manifest):
     return manifest if suffix == 'win-x64' else {}
 
 
+def _fetch_manifest(url):
+    headers = {"User-Agent": "SyncSprite/" + __version__}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=8) as response:
+            raw = response.read()
+    except OSError as error:
+        activity.dev("update manifest request failed, trying GitHub Contents API: %s", error)
+        headers["Accept"] = "application/vnd.github.raw+json"
+        request = urllib.request.Request(MANIFEST_FALLBACK_URL, headers=headers)
+        with urllib.request.urlopen(request, timeout=8) as response:
+            if response.geturl() != MANIFEST_FALLBACK_URL:
+                raise ValueError('备用更新源地址发生变化')
+            raw = response.read()
+    manifest = json.loads(raw.decode("utf-8"))
+    if not isinstance(manifest, dict) or not isinstance(manifest.get('version'), str) or not manifest['version']:
+        raise ValueError('更新清单缺少版本号')
+    return manifest
+
+
 def check(force=False):
     """返回 update 信息体。每天首次使用检查一次；失败静默。"""
     url = config.get("update_manifest_url")
@@ -103,9 +125,7 @@ def check(force=False):
         from updater import trusted_url
         if not trusted_url(url, manifest=True):
             raise ValueError('更新源不在可信仓库范围内')
-        req = urllib.request.Request(url, headers={"User-Agent": "SyncSprite/" + __version__})
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            manifest = json.loads(resp.read().decode("utf-8"))
+        manifest = _fetch_manifest(url)
         asset = select_asset(manifest)
         newer = semver_tuple(str(manifest.get('version', ''))) > semver_tuple(__version__)
         if newer and (not asset.get('download_url') or not asset.get('sha256')):

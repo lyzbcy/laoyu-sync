@@ -6,6 +6,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
+from urllib.error import URLError
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'core'))
@@ -44,10 +45,33 @@ class VersionContracts(unittest.TestCase):
         with patch('version.urllib.request.urlopen', side_effect=OSError('offline')) as req:
             self.assertTrue(version.check().get('error'))
             version.check()
-            self.assertEqual(req.call_count, 1)
-            version.check(force=True)
             self.assertEqual(req.call_count, 2)
+            version.check(force=True)
+            self.assertEqual(req.call_count, 4)
         self.assertNotEqual(config.get('last_update_check'), version._today())
+
+    def test_reset_recovers_from_official_manifest_api(self):
+        class Response(io.BytesIO):
+            def geturl(self):
+                return version.MANIFEST_FALLBACK_URL
+
+        manifest = {
+            'version': '1.0.0',
+            'platforms': {'win-x64': {
+                'download_url': 'https://github.com/lyzbcy/laoyu-sync/releases/download/v1.0.0/laoyu-sync-1.0.0-win-x64.zip',
+                'sha256': 'a' * 64,
+            }},
+        }
+        reply = Response(json.dumps(manifest).encode())
+        reset = URLError(ConnectionResetError('connection reset'))
+        with patch.object(sys, 'platform', 'win32'), patch('version.urllib.request.urlopen', side_effect=[reset, reply]) as fetch:
+            result = version.check(force=True)
+        self.assertEqual(result['error'], '')
+        self.assertTrue(result['has_update'])
+        self.assertEqual(result['sha256'], 'a' * 64)
+        fallback = fetch.call_args.args[0]
+        self.assertEqual(fallback.full_url, version.MANIFEST_FALLBACK_URL)
+        self.assertEqual(fallback.get_header('Accept'), 'application/vnd.github.raw+json')
 
     def test_cache_cannot_offer_downgrade(self):
         config.set('_update_cache', {'has_update':True, 'remote_version':'0.1.0'})
