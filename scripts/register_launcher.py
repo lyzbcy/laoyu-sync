@@ -15,7 +15,7 @@ name = manifest['download_url'].rsplit('/',1)[1]
 archive = root/'dist'/name
 if hashlib.sha256(archive.read_bytes()).hexdigest() != manifest['sha256']:
     raise ValueError('Package hash does not match candidate metadata')
-adapter = {'schemaVersion':1,'id':'laoyu-sync','name':'捞鱼同步小助手','version':manifest['version'],'platform':'win32','architecture':'x64','executable':'LaoyuSync.exe','category':'桌面效率','summary':'中文引导电脑间同步文件，桌面小鱼实时展示状态。','siteUrl':'https://github.com/lyzbcy/laoyu-sync','iconPath':'assets/app.ico','videoIds':[], 'package':{'type':'portable-zip','path':'dist/'+name,'url':manifest['download_url'],'sha256':manifest['sha256']}}
+adapter = {'schemaVersion':1,'id':'laoyu-sync','name':'捞鱼文件夹同步','version':manifest['version'],'platform':'win32','architecture':'x64','executable':'LaoyuSync.exe','category':'桌面效率','summary':'中文引导电脑间同步文件，桌面小鱼实时展示状态。','siteUrl':'https://github.com/lyzbcy/laoyu-sync','iconPath':'assets/app.ico','videoIds':[], 'package':{'type':'portable-zip','path':'dist/'+name,'url':manifest['download_url'],'sha256':manifest['sha256']}}
 (root/'launcher-adapter.json').write_text(json.dumps(adapter,ensure_ascii=False,indent=2),encoding='utf-8')
 catalog_file = launcher/'catalog/products.json'
 catalog = json.loads(catalog_file.read_text(encoding='utf-8'))

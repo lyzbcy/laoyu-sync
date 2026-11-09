@@ -41,7 +41,9 @@ def _log_tail(path, limit=96000):
 
 def diagnostics(engine_key='', engine_state=None):
     import activity
+    activity.flush() # Include queued diagnostics without waiting for the periodic batch.
     sections = ['Laoyu Sync ' + version.__version__]
+    sections.append('Logger: ' + json.dumps(activity.log_status()))
     if engine_state:
         selected = {key: engine_state.get(key) for key in ('phase', 'error_code', 'elapsed_seconds', 'message')}
         sections.append('Engine startup: ' + json.dumps(selected, ensure_ascii=False))
@@ -128,7 +130,7 @@ def _messages(data):
         current += character
     if current:
         chunks.append(current)
-    header = ('【捞鱼同步小助手 · 反馈】\n版本：' + data['version'] + '\n系统：' + data['platform'] + '\n分类：' + data['category'] + '\n编号：' + data['request_id'][:8])
+    header = ('【捞鱼文件夹同步 · 反馈】\n版本：' + data['version'] + '\n系统：' + data['platform'] + '\n分类：' + data['category'] + '\n编号：' + data['request_id'][:8])
     return [header + f'\n留言（{i+1}/{len(chunks)}）：\n' + text for i,text in enumerate(chunks)]
 
 

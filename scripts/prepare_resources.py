@@ -10,12 +10,12 @@ ver = re.search(r'__version__ = "([^"]+)"', (root/'core/version.py').read_text(e
 # Keep installer identity and output filename on the same version source as the EXE.
 installer = root / 'installer/windows.iss'
 updated, replacements = re.subn(r'^#define AppVersion "[^"\r\n]+"',
-    '#define AppVersion "' + ver + '"', installer.read_text(encoding='utf-8'), count=1, flags=re.MULTILINE)
+    '#define AppVersion "' + ver + '"', installer.read_text(encoding='utf-8-sig'), count=1, flags=re.MULTILINE)
 if replacements != 1:
     raise RuntimeError('Installer version declaration missing; refusing a stale installer')
-installer.write_text(updated, encoding='utf-8')
+installer.write_text(updated, encoding='utf-8-sig')
 numbers = tuple(map(int, ver.split('.'))) + (0,)
-fields = {'CompanyName':'捞鱼工作室','FileDescription':'捞鱼同步小助手','FileVersion':ver,'InternalName':'LaoyuSync','OriginalFilename':'LaoyuSync.exe','ProductName':'Laoyu Sync','ProductVersion':ver}
+fields = {'CompanyName':'捞鱼工作室','FileDescription':'捞鱼文件夹同步','FileVersion':ver,'InternalName':'LaoyuSync','OriginalFilename':'LaoyuSync.exe','ProductName':'Laoyu Sync','ProductVersion':ver}
 strings = ',\n'.join(f'StringStruct({key!r}, {value!r})' for key,value in fields.items())
 (root/'assets/version_info.txt').write_text(f'''VSVersionInfo(ffi=FixedFileInfo(filevers={numbers!r},prodvers={numbers!r},mask=0x3f,flags=0,OS=0x40004,fileType=1,subtype=0,date=(0,0)), kids=[StringFileInfo([StringTable('080404b0',[{strings}])]),VarFileInfo([VarStruct('Translation',[2052,1200])])])''', encoding='utf-8')
 licenses = root/'licenses'

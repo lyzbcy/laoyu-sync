@@ -1,4 +1,5 @@
 """Real full executable swap and rollback. Same version fixtures, isolated data."""
+import argparse
 import ctypes
 from ctypes import wintypes
 import json
@@ -86,6 +87,10 @@ def scenario(bundle, fault=False, old_bundle=None):
     return result
 
 if __name__ == '__main__':
-    bundle = Path('dist/LaoyuSync').resolve()
-    print(json.dumps(scenario(bundle), ensure_ascii=False), flush=True)
-    print(json.dumps(scenario(bundle, fault=True), ensure_ascii=False), flush=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--bundle', type=Path, default=Path('dist/LaoyuSync'))
+    parser.add_argument('--old-bundle', type=Path)
+    args = parser.parse_args()
+    Path('verification').mkdir(exist_ok=True)
+    print(json.dumps(scenario(args.bundle.resolve(), old_bundle=args.old_bundle), ensure_ascii=False), flush=True)
+    print(json.dumps(scenario(args.bundle.resolve(), fault=True, old_bundle=args.old_bundle), ensure_ascii=False), flush=True)

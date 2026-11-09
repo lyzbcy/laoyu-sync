@@ -1,22 +1,28 @@
-"""Repository-native app icon matching the desktop fish."""
-from PIL import Image, ImageDraw
+"""Derive window, launcher and installer art from the approved logo."""
 from pathlib import Path
+
+from PIL import Image
 
 root = Path(__file__).resolve().parent.parent
 assets = root / 'assets'
-assets.mkdir(exist_ok=True)
-im = Image.new('RGBA', (256, 256), (0, 0, 0, 0))
-d = ImageDraw.Draw(im)
-d.rounded_rectangle((4, 4, 252, 252), 58, fill='#e8f6ef')
-d.polygon([(87, 128), (32, 87), (44, 130), (32, 174)], fill='#177b67')
-d.polygon([(96, 81), (128, 43), (158, 83)], fill='#177b67')
-d.ellipse((66, 71, 221, 202), fill='#39ad92', outline='#177b67', width=5)
-d.ellipse((79, 146, 209, 196), fill='#fafffc')
-d.ellipse((153, 88, 200, 135), fill='white', outline='#163e34', width=3)
-d.ellipse((168, 100, 188, 122), fill='#163e34')
-d.ellipse((170, 102, 178, 110), fill='white')
-d.arc((160, 137, 197, 169), 0, 160, fill='#163e34', width=4)
-d.ellipse((192, 137, 211, 150), fill='#fac8d4')
-im.save(assets / 'app.png')
-im.resize((1024,1024)).save(assets / 'app.icns')
-im.save(assets / 'app.ico', sizes=[(16,16), (32,32), (48,48), (64,64), (128,128), (256,256)])
+with Image.open(assets / 'app-approved.png') as source:
+    icon = source.convert('RGBA')
+    icon.resize((256, 256), Image.Resampling.LANCZOS).save(assets / 'app.png')
+    icon.resize((1024, 1024), Image.Resampling.LANCZOS).save(assets / 'app.icns')
+    icon.resize((256, 256), Image.Resampling.LANCZOS).save(
+        assets / 'app.ico', sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+    )
+    icon.resize((96, 96), Image.Resampling.LANCZOS).save(root / 'ui/assets/brand.png')
+
+    # Inno Setup uses opaque BMPs. Match the installer's mint palette.
+    header = Image.new('RGB', (55, 55), '#eef2e9')
+    mark = icon.resize((51, 51), Image.Resampling.LANCZOS)
+    header.paste(mark, (2, 2), mark)
+    header.save(root / 'installer/header.bmp')
+
+with Image.open(root / 'ui/assets/stickers/第12弹-挥手.png') as source:
+    art = source.convert('RGBA')
+    art.thumbnail((150, 165), Image.Resampling.LANCZOS)
+    panel = Image.new('RGB', (164, 314), '#e3efe2')
+    panel.paste(art, ((164 - art.width) // 2, 86), art)
+    panel.save(root / 'installer/welcome.bmp')

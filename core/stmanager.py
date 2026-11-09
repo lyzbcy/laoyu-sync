@@ -80,7 +80,6 @@ def stop_owned():
             child.wait(timeout=10)
     _owned_process = None
 
-
 def shutdown_external():
     """用户明确请求接管时，经引擎自身 REST 接口优雅退出外部引擎。
 
@@ -364,8 +363,8 @@ class STClient:
     def get(self, path, timeout=6):
         return self._call("GET", path, timeout=timeout)
 
-    def post(self, path, body=None):
-        return self._call("POST", path, body)
+    def post(self, path, body=None, timeout=6):
+        return self._call("POST", path, body, timeout=timeout)
 
     def put(self, path, body=None):
         return self._call("PUT", path, body)
@@ -571,7 +570,7 @@ class STManager:
             my_id = st.get("myID", "")
             folders = cfg.get("folders", [])
             total_g = total_i = 0
-            need_files = need_bytes = 0
+            need_files = need_bytes = need_items = 0
             for f in folders:
                 fid = f.get("id", "")
                 try:
@@ -584,12 +583,15 @@ class STManager:
                 total_i += i
                 need_files += s.get("needFiles", 0)
                 need_bytes += s.get("needBytes", 0)
+                outstanding = s.get("needTotalItems", s.get("needFiles", 0))
+                need_items += outstanding
                 snap["folders"].append({
                     "id": fid, "label": f.get("label") or fid,
                     "path": f.get("path", ""), "state": s.get("state", "?"),
                     "globalBytes": g, "inSyncBytes": i,
                     "needBytes": s.get("needBytes", 0),
                     "needFiles": s.get("needFiles", 0),
+                    "needItems": outstanding,
                     "pullErrors": s.get("pullErrors", 0),
                     "errors": s.get("errors", 0),
                     "paused": bool(f.get('paused')),
@@ -609,18 +611,54 @@ class STManager:
                 })
             snap["total"] = {
                 "pct": max(0, min(100, round(total_i / total_g * 100.0, 2))) if total_g else (100.0 if folders else 0.0),
-                "complete": bool(folders) and all(f['state'] == 'idle' and not f['paused'] and not f['needFiles'] and not f['pullErrors'] and not f['errors'] for f in snap['folders']),
-                "needBytes": need_bytes, "needFiles": need_files,
+                "complete": bool(folders) and all(f['state'] == 'idle' and not f['paused'] and not f['needItems'] and not f['pullErrors'] and not f['errors'] for f in snap['folders']),
+                "needBytes": need_bytes, "needFiles": need_files, "needItems": need_items,
                 "speed": round(self._rates["out"] + self._rates["in"], 1),
             }
             # Offers belong to the same engine snapshot; both dashboard and pet see them.
             snap['pending_folders'] = self.pending_folders() if not folders else []
+            snap['delivery'] = self.delivery_status(snap)
         except Exception as exc:
             activity.error("status aggregate failed: %s", exc)
             snap["syncthing"]["note"] = "状态聚合失败"
             snap["syncthing"]["api_ok"] = False
         snap['setup'] = setup_summary(snap)
         return snap
+
+    def delivery_status(self, snap):
+        """Use per-folder peer index evidence, never the local 100% alone."""
+        if not snap['total']['complete']:
+            return {'state': 'unknown'}
+        devices = {d['id']: d for d in snap['devices'] if not d['self']}
+        pairs = [(f['id'], did) for f in snap['folders'] for did in f['deviceIDs'] if did]
+        if not pairs:
+            return {'state': 'unknown'}
+        for _, did in pairs:
+            device = devices.get(did)
+            if device and not device['connected']:
+                return {'state': 'offline', 'device': device['name']}
+        deadline = time.monotonic() + 0.8
+        for fid, did in pairs:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or did not in devices:
+                return {'state': 'unknown'}
+            try:
+                query = urllib.parse.urlencode({'folder': fid, 'device': did})
+                remote = self.client.get('/rest/db/completion?' + query, timeout=min(0.35, remaining))
+                if remote.get('remoteState') != 'valid':
+                    return {'state': 'unknown'}
+                counts = [remote.get(key) for key in ('needItems', 'needBytes', 'needDeletes')]
+                if any(type(count) is not int or count < 0 for count in counts):
+                    return {'state': 'unknown'}
+                if any(counts):
+                    completion = remote.get('completion')
+                    pct = completion if type(completion) in (int, float) and 0 <= completion < 100 else None
+                    return {'state': 'sending', 'device': devices[did]['name'], 'pct': pct}
+                if remote.get('completion') != 100:
+                    return {'state': 'unknown'}
+            except (OSError, RuntimeError, ValueError, TypeError, AttributeError):
+                return {'state': 'unknown'}
+        return {'state': 'delivered', 'devices': len({did for _, did in pairs})}
 
     def _sample_speed(self, total):
         now = time.time()
@@ -683,25 +721,22 @@ class STManager:
         return [{"id": f["id"], "label": f.get("label") or f["id"]}
                 for f in self.client.get("/rest/config").get("folders", [])]
 
+    def folder_error_items(self, fid, limit=5):
+        query = urllib.parse.urlencode({'folder': fid, 'perpage': limit})
+        data = self.client.get('/rest/folder/errors?' + query)
+        return [{'path': item.get('path') or '',
+                 'message': (item.get('error') or item.get('message') or '')[:300]}
+                for item in (data.get('errors') or []) if isinstance(item, dict)]
+
     def folder_errors(self, limit_per_folder=5):
-        """同步失败的文件清单（改名后一般会自动重传）。"""
         out = []
-        for f in self.client.get("/rest/config").get("folders", []):
-            fid = f.get("id", "")
+        for folder in self.list_folders():
             try:
-                data = self.client.get(
-                    "/rest/folder/errors?folder=" + urllib.parse.quote(fid))
-            except Exception:
+                items = self.folder_error_items(folder['id'], limit_per_folder)
+            except (OSError, RuntimeError, ValueError, TypeError):
                 continue
-            items = data.get("errors") or []
             if items:
-                out.append({
-                    "folder": f.get("label") or fid,
-                    "count": len(items),
-                    "items": [{"path": e.get("path", ""),
-                               "message": e.get("message", "")[:80]}
-                              for e in items[:limit_per_folder]],
-                })
+                out.append({'folder': folder['label'], 'count': len(items), 'items': items})
         return out
 
     def _maybe_restart(self, resp):

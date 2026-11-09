@@ -1,3 +1,17 @@
+## 2026-11-09 排查与桌面精灵改进 · 本机开发版 0.3.16
+
+同步排查上线，补齐引擎原始错误、离线、缺块和占用等分类，并提供一次有界本机修复。新版设置与关于按排查、连接、桌面与日志、应用与支持分区。精灵恢复环形进度，补回待机动作，三组透明帧图添加实心白描边以消除深色透明边。实现与验证见 [同步排查](sync-repair.md)。
+
+Windows 本机已在原 D 盘目录升级 0.3.16，并从开始菜单重新打开。软件中心仍解析到这一安装，独立 Syncthing 进程、同步配置、设备身份和主要偏好已核对。214 项测试通过，隔离真实引擎定向扫描通过。本机只读排查回读到对端未连接和本机文件占用。公开发行仍为 0.3.14，macOS 未实机验收。
+
+## 2026-11-09 文件邮差改版 · 本机开发版 0.3.15
+
+正式中文名为「捞鱼文件夹同步」，沿用 laoyu-sync、LaoyuSync.exe、studio.laoyu.sync 和用户数据路径。概览先展示文件状态，连接与诊断折叠。沿用 0.3.14 的直连自检与用户确认后接管能力。桌面精灵按同步中、已送达、等待对方上线映射三套 7×7 透明图集，合计 3.30 MB。只有对端索引有效并确认完成，才显示已送达。
+
+Windows 安装器带定稿 Logo 和原创表情，默认优先非系统盘，支持盘符按钮与自定义目录，升级沿用已有安装位置。本机在原 D 盘位置安装 0.3.15。开始菜单冷启动实测打开新版，软件中心现有识别和解析逻辑已回读同一 EXE。核对外部 Syncthing PID、配置与身份指纹、项目和设备数量及主要偏好。207 项隔离测试通过，最终包已验证主窗、引擎就绪、精灵开关及退出。macOS 仍待实机验收。
+
+本机保留 dist/laoyu-sync-0.3.15-win-x64-setup.exe，SHA-256 `28db69b93eb6dfc6db96501c1946d745c8ad6eb27f4fb53b5be37e16e8162533`。按用户要求清理旧开发制品和本轮回退副本。回执见 verification/installed-0315.json 和 verification/native-name-0315/result.json。此轮为本机试用，公开发行仍为 0.3.14。
+
 ## 2026-10-19 0.3.14 一键直连自检与引擎接管正式发布
 
 发布页：https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.14 。运行时提交 157e17d（workflow_dispatch 构建 39220310638 双端成功，含 Windows/Mac 原生门禁），发布 run 39221259148 完成五资产上传与公开全量回读（证据 release-public-evidence）。首次发布因草稿创建后 releases 列表 API 秒级延迟抛 StopIteration，修复 release_for_tag 短重试（61c1aa2）后重跑成功。不可变资产：Windows ZIP SHA256 `38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa`；Windows 安装器 `4cb29032b5a1172a0d9aadeaf6ce243f7d30ea8f004338b07b5f52e1e542c3ce`；Mac arm64 ZIP `25f93375d7c1745fb0b75d5df363ca06f8eb0e71cf47906e58f76480142f7c84`。正式根 version.json 与 launcher-adapter.json 在公开回读后切换（9018b90）。

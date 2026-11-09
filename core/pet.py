@@ -39,16 +39,11 @@ FONT_S = (_FONT_NAME, 8)
 AUTO_START_SYNCTHING = False  # 引擎由主程序统一管理
 POLL_SECONDS = 2
 
-COLORS = {
-    "ok":       ("#75C9B2", "#287E73"),
-    "syncing":  ("#71BCE9", "#337CBA"),
-    "ready":    ("#8ED7E0", "#3C8F9C"),
-    "scanning": ("#00ACC1", "#007585"),
-    "pending":  ("#FB8C00", "#B25E00"),
-    "error":    ("#E53935", "#9F2622"),
-    "starting": ("#90A4AE", "#5F6B73"),
-    "stopped":  ("#9E9E9E", "#6B6B6B"),
-}
+SPRITES = {'syncing': 20, 'delivered': 20, 'waiting': 14}
+FRAME_SIZE = 128
+FRAME_COUNT = 49
+ART_DIR = config.ROOT / 'assets'
+
 
 SYNCTHING_EXE_CANDIDATES = [
     os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\WinGet\Links\syncthing.exe"),
@@ -56,7 +51,7 @@ SYNCTHING_EXE_CANDIDATES = [
     os.path.expandvars(r"%APPDATA%\Syncthing\syncthing.exe"),
 ]
 
-# 捞鱼同步小助手（套壳管理界面）网关：地址固定本机，令牌从其配置读取
+# 捞鱼文件夹同步（套壳管理界面）网关：地址固定本机，令牌从其配置读取
 SYNCSPIRITE_CFG = config.CONFIG_PATH
 
 
@@ -234,10 +229,10 @@ def aggregate(snap):
     insync = sum(f["inSyncBytes"] for f in folders)
     pct = (insync / total * 100.0) if total else 100.0
 
-    syncing = [f for f in folders if f["state"] in ("syncing", "scanning")]
+    syncing = [f for f in folders if f["state"] in ("syncing", "sync-preparing", "scanning")]
     failed = sum(f["pullErrors"] for f in folders)
     err_state = any(f["state"] == "error" for f in folders)
-    need_files = sum(f["needFiles"] for f in folders)
+    need_files = sum(f.get("needItems", f["needFiles"]) for f in folders)
     need_bytes = sum(f["needBytes"] for f in folders)
     waiting = [f for f in folders if f["state"] not in ("idle", "syncing", "scanning", "cleanWaiting")
                and f["state"] != "error"]
@@ -304,22 +299,17 @@ class PetApp:
         self.root = root
         root.title("捞鱼桌面小精灵")
         self.snapshot = None
-        self.state_key = "starting"
         self.q = queue.Queue()
         self.topmost = tk.BooleanVar(value=True)
         self.panel_visible = False
         self._drag = None
         self._moved = False
         self._click_job = None
-        self._bob_t = 0.0
-        self._last_dy = 0.0
-        self._wag_t = 0.0
-        self._fin_t = 0.0
-        self._blink_until = 0.0
-        self._next_blink = time.time() + 3
+        self._sprite = None
+        self._frame_job = None
         self.S = max(1.0, root.winfo_fpixels("1i") / 96.0)  # DPI 缩放系数
 
-        w, h = int(190 * self.S), int(224 * self.S)
+        w, h = int(190 * self.S), int(200 * self.S)
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         self.x = int(sw - w - 30 * self.S)
         self.y = int(sh - h - 90 * self.S)
@@ -351,7 +341,7 @@ class PetApp:
                   bg='#334A5A', fg='#E8F4FA', relief='flat', padx=12, pady=7).pack(fill='x')
 
         self.menu = tk.Menu(root, tearoff=0)
-        self.menu.add_command(label="打开捞鱼同步小助手", command=open_syncsprite)
+        self.menu.add_command(label="打开捞鱼文件夹同步", command=open_syncsprite)
         self.menu.add_command(label="打开 Syncthing 高级设置", command=self.open_web)
         self.menu.add_command(label="启动 Syncthing", command=self.manual_start)
         self.menu.add_separator()
@@ -371,7 +361,6 @@ class PetApp:
 
         threading.Thread(target=poll_worker, args=(self.q,), daemon=True).start()
         root.after(150, self._drain_queue)
-        root.after(80, self._animate)
 
     # ---------- 事件处理
 
@@ -470,126 +459,94 @@ class PetApp:
                 break
 
     def _draw_static(self, w, h):
-        c = self.canvas
-        s = self.S
+        c, s = self.canvas, self.S
+        self.atlases = {
+            key: tk.PhotoImage(master=self.root, file=str(ART_DIR / 'pet' / f'{key}.png'))
+            for key in SPRITES
+        }
+        self.frame = tk.PhotoImage(master=self.root, width=FRAME_SIZE, height=FRAME_SIZE)
+        cx, cy = w // 2, int(8 * s) + FRAME_SIZE // 2
+        radius = FRAME_SIZE // 2 + int(6 * s)
+        bounds = cx - radius, cy - radius, cx + radius, cy + radius
+        self.track = c.create_oval(*bounds, outline='#C8DACD', width=max(2, int(3 * s)), state='hidden')
+        self.progress = c.create_arc(*bounds, start=90, extent=0, style='arc',
+                                     outline='#247859', width=max(2, int(4 * s)), state='hidden')
+        self.sprite_x, self.sprite_y = cx, cy - FRAME_SIZE // 2
+        self.sprite_item = c.create_image(self.sprite_x, self.sprite_y, image=self.frame, anchor='n')
+        self.icon = tk.PhotoImage(master=self.root, file=str(ART_DIR / 'app.png'))
+        self.root.iconphoto(True, self.icon)
+        left, right, top, bottom = int(8*s), w-int(8*s), int(149*s), h-int(5*s)
+        corner = int(10*s)
+        c.create_polygon(left+corner, top, right-corner, top, right, top, right, top+corner,
+                         right, bottom-corner, right, bottom, right-corner, bottom, left+corner, bottom,
+                         left, bottom, left, bottom-corner, left, top+corner, left, top,
+                         smooth=True, fill='#F7F8F3', outline='')
+        self.big_txt = c.create_text(cx, int(161*s), text="正在连接…", font=FONT_B, fill="#182E25")
+        self.small_txt = c.create_text(cx, int(182*s), text="", font=FONT_S, fill="#52665A",
+                                       width=w-int(24*s))
+        self._set_sprite('waiting', 'idle')
 
-        def p(*vals):
-            return [int(round(v * s)) for v in vals]
+    def _set_sprite(self, name, mode):
+        selection = name, mode
+        if selection == self._sprite:
+            return
+        self._sprite = selection
+        if self._frame_job is not None:
+            self.root.after_cancel(self._frame_job)
+            self._frame_job = None
+        self._frame_index = None
+        self._started = time.monotonic()
+        self._draw_frame()
 
-        self.shadow = c.create_oval(*p(60, 162, 130, 174), fill="#777777", outline="")
-        self.ring = c.create_arc(*p(18, 12, 172, 166), start=90, extent=0,
-                                 style="arc", width=max(2, int(6 * s)), outline="#666666")
-        # 鱼尾（垫在身体下面，_animate 里每帧改坐标实现摆动）
-        self._tail_base = [(54.0, 98.0), (24.0, 72.0), (33.0, 98.0), (24.0, 124.0)]
-        self.tail = c.create_polygon(*p(54, 98, 24, 72, 33, 98, 24, 124),
-                                     fill="#5F6B73", outline="", smooth=True, tags="pet")
-        # 背鳍（垫在身体下面，只露出头顶一段）
-        self.fin_dorsal = c.create_polygon(*p(76, 62, 100, 36, 124, 62),
-                                           fill="#5F6B73", outline="", smooth=True, tags="pet")
-        # 鱼身 + 白色肚皮（下半弦月）
-        self.body = c.create_oval(*p(45, 55, 152, 142), fill="#90A4AE",
-                                  outline="#5F6B73", width=max(2, int(3 * s)), tags="pet")
-        self.belly = c.create_arc(*p(49, 80, 148, 140), start=180, extent=180,
-                                  style="chord", fill="white", outline="", tags="pet")
-        # 侧鳍（syncing 时扇动）
-        self._fin_r = (11.0, 9.0)
-        self.fin_side = c.create_oval(*p(98, 106, 120, 124), fill="#5F6B73",
-                                      outline="", tags="pet")
-        # 腮红
-        self.blush = c.create_oval(*p(128, 102, 146, 113), fill="#F8BBD0",
-                                   outline="", tags="pet")
-        # 一只大眼：白底 + 深色瞳孔 + 白色高光
-        self.eye = c.create_oval(*p(110, 66, 142, 98), fill="white",
-                                 outline="#333333", width=max(1, int(1.5 * s)), tags="pet")
-        self.pup = c.create_oval(*p(119, 75, 133, 89), fill="#333333", outline="", tags="pet")
-        self.highlight = c.create_oval(*p(121, 77, 127, 83), fill="white", outline="", tags="pet")
-        self._pup_base = {}
-        x0, y0, x1, y1 = c.coords(self.pup)
-        self._pup_base[self.pup] = (x0 + x1) / 2
-        self.lid = c.create_line(*p(110, 80, 126, 86, 142, 80), fill="#333333",
-                                 smooth=True, width=max(2, int(3 * s)),
-                                 state="hidden", tags="pet")
-        # 嘴巴：smile / flat / frown / o 四个，按状态显示（鱼头右侧）
-        self.mouth_smile = c.create_arc(*p(117, 108, 145, 132), start=200, extent=140,
-                                        style="arc", outline="#333333",
-                                        width=max(2, int(3 * s)), tags="pet")
-        self.mouth_frown = c.create_arc(*p(117, 112, 145, 130), start=20, extent=140,
-                                        style="arc", outline="#333333",
-                                        width=max(2, int(3 * s)), tags="pet")
-        self.mouth_flat = c.create_line(*p(122, 122, 140, 122), fill="#333333",
-                                        width=max(2, int(3 * s)), tags="pet")
-        self.mouth_o = c.create_oval(*p(125, 116, 137, 128), outline="#333333",
-                                     width=max(2, int(3 * s)), tags="pet")
-        for m in (self.mouth_frown, self.mouth_flat, self.mouth_o):
-            c.itemconfig(m, state="hidden")
-        # error 时头顶冒汗（蓝色水滴）
-        self.sweat = c.create_polygon(*p(146, 44, 141, 53, 143, 59, 146, 61,
-                                         149, 59, 151, 53),
-                                      fill="#4FC3F7", outline="#0288D1",
-                                      width=max(1, int(1 * s)), smooth=True,
-                                      state="hidden", tags="pet")
-        # 嘴前气泡：syncing/scanning 连冒 3 个，平时偶尔冒一个，stopped/error 不冒
-        self._bubble_base = [(148.0, 120.0), (152.0, 106.0), (146.0, 128.0)]
-        self.bubbles = [c.create_oval(0, 0, 0, 0, outline="#81D4FA",
-                                      width=max(1, int(1.5 * s)), state="hidden")
-                        for _ in range(3)]
-        self.zzz = c.create_text(*p(158, 46), text="z z", font=FONT_B, fill="#9E9E9E",
-                                 angle=20, state="hidden", tags="pet")
-        self.badge = c.create_oval(*p(138, 16, 166, 44), fill="#E53935",
-                                   outline="white", width=max(1, int(2 * s)), state="hidden")
-        self.badge_txt = c.create_text(*p(152, 30), text="", font=FONT_B, fill="white", state="hidden")
-        # A readable status capsule on any wallpaper, independent of the fish animation.
-        c.create_polygon(*p(18, 177, 172, 177, 182, 187, 182, 209, 172, 219,
-                            18, 219, 8, 209, 8, 187), smooth=True,
-                         fill='#F0F7FA', outline='#C9DDE6')
-        self.big_txt = c.create_text(w // 2, int(189 * s), text="正在连接…", font=FONT_B, fill="#25465B")
-        self.small_txt = c.create_text(w // 2, int(207 * s), text="", font=FONT_S, fill="#517185")
+    def _draw_frame(self):
+        self._frame_job = None
+        name, mode = self._sprite
+        fps = SPRITES[name]
+        elapsed = time.monotonic() - self._started
+        position = int(elapsed * fps)
+        if mode == 'once':
+            index = min(position, FRAME_COUNT - 1)
+        elif mode == 'loop':
+            index = position % FRAME_COUNT
+        elif mode == 'idle':
+            # One short glance per ten seconds, with a soft breathing motion at rest.
+            phase = elapsed % 10
+            index = min(FRAME_COUNT - 1, int((phase - 6) * fps)) if phase >= 6 else 0
+        else:
+            index = 0
+        if index != self._frame_index:
+            x, y = index % 7 * FRAME_SIZE, index // 7 * FRAME_SIZE
+            self.frame.tk.call(str(self.frame), 'copy', str(self.atlases[name]),
+                               '-from', x, y, x + FRAME_SIZE, y + FRAME_SIZE,
+                               '-to', 0, 0, '-compositingrule', 'set')
+            self._frame_index = index
+        breathing = mode == 'idle' or (mode == 'once' and index == FRAME_COUNT - 1)
+        offset = round(math.sin(elapsed * 2.4) * 2 * self.S) if breathing else 0
+        self.canvas.coords(self.sprite_item, self.sprite_x, self.sprite_y + offset)
+        if mode != 'static':
+            interval = 85 if breathing and index in (0, FRAME_COUNT - 1) else round(1000 / fps)
+            self._frame_job = self.root.after(interval, self._draw_frame)
 
     def _apply_state(self, snap):
         key, big, small, pct, badge = aggregate(snap)
-        fill, outline = COLORS[key]
-        c = self.canvas
-        c.itemconfig(self.body, fill=fill, outline=outline)
-        # 尾鳍/背鳍/侧鳍用同色系深色，跟着状态一起换装
-        c.itemconfig(self.tail, fill=outline, outline=outline)
-        c.itemconfig(self.fin_dorsal, fill=outline, outline=outline)
-        c.itemconfig(self.fin_side, fill=outline, outline=outline)
-        # error：头顶冒一滴汗（徽标 "!" 逻辑保持不变）
-        c.itemconfig(self.sweat, state="normal" if key == "error" else "hidden")
-        if pct > 0:
-            ext = 359.9 if pct >= 99.995 else max(0.1, pct * 3.6)
+        if key == 'delivered':
+            self._set_sprite('delivered', 'once')
+        elif key in ('syncing', 'scanning'):
+            self._set_sprite('syncing', 'loop')
+        elif key == 'waiting':
+            self._set_sprite('waiting', 'loop')
+        elif key in ('error', 'stopped'):
+            self._set_sprite('waiting', 'static')
         else:
-            ext = 0
-        c.itemconfig(self.ring, outline=outline, extent=ext)
-
-        # 表情
-        show = dict(smile=1, frown=0, flat=0, o=0)
-        if key == "error":
-            show = dict(smile=0, frown=1, flat=0, o=0)
-        elif key in ("syncing", "scanning"):
-            show = dict(smile=0, frown=0, flat=0, o=1)
-        elif key in ("pending", "starting"):
-            show = dict(smile=0, frown=0, flat=1, o=0)
-        elif key == "stopped":
-            show = dict(smile=0, frown=0, flat=1, o=0)
-        c.itemconfig(self.mouth_smile, state="normal" if show["smile"] else "hidden")
-        c.itemconfig(self.mouth_frown, state="normal" if show["frown"] else "hidden")
-        c.itemconfig(self.mouth_flat, state="normal" if show["flat"] else "hidden")
-        c.itemconfig(self.mouth_o, state="normal" if show["o"] else "hidden")
-        c.itemconfig(self.zzz, state="normal" if key == "stopped" else "hidden")
-
-        # 徽标
-        if badge > 0:
-            c.itemconfig(self.badge, state="normal",
-                         fill=COLORS["error"][0] if key == "error" else COLORS["pending"][0])
-            c.itemconfig(self.badge_txt, state="normal", text="!" if badge > 99 else str(badge))
-        else:
-            c.itemconfig(self.badge, state="hidden")
-            c.itemconfig(self.badge_txt, state="hidden")
-
-        c.itemconfig(self.big_txt, text=big)
-        c.itemconfig(self.small_txt, text=small)
-
+            self._set_sprite('waiting', 'idle')
+        if badge and key == 'error':
+            big = f'!  {big}'
+        show_progress = pct is not None and key in ('syncing', 'scanning', 'ok', 'delivered')
+        self.canvas.itemconfig(self.track, state='normal' if show_progress else 'hidden')
+        self.canvas.itemconfig(self.progress, state='normal' if show_progress and pct > 0 else 'hidden',
+                               extent=-min(359.9, (pct or 0) * 3.6))
+        self.canvas.itemconfig(self.big_txt, text=big, fill='#9F2622' if key == 'error' else '#182E25')
+        self.canvas.itemconfig(self.small_txt, text=small)
         if self.panel_visible:
             self._update_panel_text()
             self._place_panel()
@@ -652,106 +609,6 @@ class PetApp:
         except queue.Empty:
             pass
         self.root.after(300, self._drain_queue)
-
-    def _animate(self):
-        now = time.time()
-        if self.snapshot:
-            key = aggregate(self.snapshot)[0]
-        else:
-            key = "starting"
-        c = self.canvas
-        s = self.S
-        busy = key in ("syncing", "scanning")
-
-        # 身体上下浮动：同步/扫描时浮动更明显，stopped 缓慢微浮
-        amp = 3.5 if busy else (1.2 if key != "stopped" else 0.4)
-        self._bob_t += 0.12
-        dy = math.sin(self._bob_t) * amp
-        c.move("pet", 0, dy - self._last_dy)
-        self._last_dy = dy
-
-        # 鱼尾摆动：每帧按基准点重算 polygon 坐标（基准点带 bob 偏移）
-        wag_amp = 7.0 if busy else (1.5 if key != "stopped" else 0.6)
-        self._wag_t += 0.45 if busy else 0.1
-        wag = math.sin(self._wag_t) * wag_amp
-        tc = c.coords(self.tail)
-        bx, by = tc[0], tc[1]
-        ox, oy = self._tail_base[0]
-        pts = [bx, by]
-        for lx, ly in self._tail_base[1:]:
-            pts.append(bx + (lx - ox) * s)
-            pts.append(by + (ly - oy + wag) * s)
-        c.coords(self.tail, *pts)
-
-        # 侧鳍扇动：按当前中心重算椭圆，压扁系数随正弦变化
-        if busy:
-            self._fin_t += 0.5
-            fl = 1.0 - 0.4 * abs(math.sin(self._fin_t))
-        else:
-            fl = 1.0
-        fx0, fy0, fx1, fy1 = c.coords(self.fin_side)
-        fcx, fcy = (fx0 + fx1) / 2, (fy0 + fy1) / 2
-        frx, fry = self._fin_r[0] * s, self._fin_r[1] * s * fl
-        c.coords(self.fin_side, fcx - frx, fcy - fry, fcx + frx, fcy + fry)
-
-        # 吐泡：同步/扫描连冒，ok/pending/starting 偶尔冒一个，stopped/error 不冒
-        if busy:
-            for i in range(3):
-                self._bubble(i, (now / 2.4 + i * 0.36) % 1.0)
-        elif key in ("ok", "pending", "starting"):
-            for i in (1, 2):
-                c.itemconfig(self.bubbles[i], state="hidden")
-            self._bubble(0, (now / 6.0) % 1.0)
-        else:
-            for b in self.bubbles:
-                c.itemconfig(b, state="hidden")
-
-        if key == "stopped":
-            # 闭眼睡觉
-            c.itemconfig(self.lid, state="normal")
-            for item in (self.eye, self.pup, self.highlight):
-                c.itemconfig(item, state="hidden")
-        else:
-            if self._blink_until > 0:
-                if now >= self._blink_until:
-                    self._blink_until = 0
-            else:
-                if now >= self._next_blink:
-                    self._blink_until = now + 0.15
-                    self._next_blink = now + 2.2 + (now % 2.0)
-                # 平时睁眼
-                c.itemconfig(self.lid, state="hidden")
-                for item in (self.eye, self.pup, self.highlight):
-                    c.itemconfig(item, state="normal")
-            if self._blink_until > 0:
-                c.itemconfig(self.lid, state="normal")
-                for item in (self.eye, self.pup, self.highlight):
-                    c.itemconfig(item, state="hidden")
-
-            # 同步时眼珠左右看
-            dx = round(math.sin(self._bob_t * 1.5) * 4) if key == "syncing" else 0
-            for pup, base in self._pup_base.items():
-                x0, y0, x1, y1 = c.coords(pup)
-                cx = (x0 + x1) / 2
-                c.move(pup, base + dx - cx, 0)
-
-        self.root.after(80, self._animate)
-
-    def _bubble(self, idx, u):
-        """第 idx 个气泡：u∈[0,1) 为生命周期，向上漂、逐渐变大、到顶消失。"""
-        c = self.canvas
-        item = self.bubbles[idx]
-        if u >= 0.88:
-            c.itemconfig(item, state="hidden")
-            return
-        s = self.S
-        x0, y0 = self._bubble_base[idx]
-        x = (x0 + math.sin(u * 7.0 + idx * 2.1) * 4.0) * s
-        y = (y0 - u * (y0 - 20.0)) * s
-        r = (2.5 + u * 5.0) * s
-        c.coords(item, x - r, y - r, x + r, y + r)
-        c.itemconfig(item, state="normal")
-
 
 _lock_sock = None
 
@@ -862,6 +719,15 @@ def aggregate(snap):
     if result[0] == 'ok':
         if 'total' in snap and not snap['total'].get('complete'):
             return 'pending', '正在确认状态', '双击查看项目进度', 0, 0
+        delivery = snap.get('delivery', {})
+        if delivery.get('state') == 'offline':
+            return 'waiting', '等对方上线', delivery['device'] + ' · 离线', 0, 0
+        if delivery.get('state') == 'sending':
+            progress = delivery.get('pct')
+            detail = delivery['device'] if progress is None else f"{fmt_pct(progress)} · {delivery['device']}"
+            return 'syncing', '正在发送文件', detail, progress, 0
+        if delivery.get('state') == 'delivered':
+            return 'delivered', '文件已送达', f"{delivery['devices']} 台电脑已同步", 100, 0
         return result[0], '本机已同步', result[2], result[3], result[4]
     return result
 

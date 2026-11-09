@@ -1,4 +1,4 @@
-/* 捞鱼同步小助手前端逻辑（原生 JS，无构建链） */
+/* 捞鱼文件夹同步前端逻辑（原生 JS，无构建链） */
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -186,8 +186,12 @@ function route() {
   const name = (location.hash.replace(/^#\//, "") || "dash").split("?")[0];
   const page = PAGES.includes(name) ? name : "dash";
   PAGES.forEach((p) => $("page-" + p).classList.toggle("hidden", p !== page));
-  document.querySelectorAll("nav a").forEach((a) =>
-    a.classList.toggle("active", a.dataset.page === page));
+  document.querySelectorAll("nav a").forEach((a) => {
+    const active = a.dataset.page === page;
+    a.classList.toggle("active", active);
+    if (active) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
   if (page === "devices") refreshDevicesPage();
   if (page === "folders") refreshFoldersPage();
 }
@@ -280,8 +284,8 @@ function stateOf(s) {
     return { key: "blue", text: "正在同步 " + fmtPct(s.total.pct), color: "var(--blue)" };
   if (fs.some((f) => f.state === "scanning"))
     return { key: "teal", text: "正在检查文件变化", color: "var(--teal)" };
-  if (s.total.needFiles > 0)
-    return { key: "orange", text: `${s.total.needFiles} 个文件排队同步中`, color: "var(--orange)" };
+  if ((s.total.needItems ?? s.total.needFiles) > 0)
+    return { key: "orange", text: `${s.total.needItems ?? s.total.needFiles} 项排队同步中`, color: "var(--orange)" };
   if (!s.total.complete) return {key: "orange", text: "正在确认项目状态", color: "var(--orange)"};
   return { key: "green", text: "本机文件已同步 " + fmtPct(s.total.pct), color: "var(--green)" };
 }
@@ -358,7 +362,7 @@ function stateLabel(f) {
   if (f.pullErrors > 0) return `${f.pullErrors} 个文件待重传`;
   if (f.state === "syncing") return "同步中";
   if (f.state === "scanning") return "检查变化中";
-  if (f.needFiles > 0) return "排队同步中";
+  if ((f.needItems ?? f.needFiles) > 0) return "排队同步中";
   if (f.state === "idle") return "已是最新";
   return f.state;
 }
@@ -427,23 +431,57 @@ function renderDash() {
   $("btnEngineStart").disabled = !s.syncthing.api_ok && ['starting', 'checking'].includes(s.syncthing.startup?.phase);
   $("btnEngineStart").textContent = $("btnEngineStart").disabled ? '正在启动…' : '重试启动引擎';
   const st = stateOf(s);
-  const pct = Math.min(100, s.total.pct);
-  $("ringPct").textContent = s.syncthing.api_ok && s.folders.length && !s.folders.some(f => f.state === "unavailable") ? fmtPct(s.total.pct) : "—";
-  const fg = $("ringFg");
-  fg.classList.remove("loading");
-  fg.style.strokeDashoffset = (326.7 * (1 - pct / 100)).toFixed(1);
-  fg.style.stroke = st.color;
-  $("heroState").textContent = st.text;
-  $("heroState").style.color = st.color;
-  $("heroDetail").textContent = s.syncthing.api_ok
-    ? `运行 ${fmtUptime(s.syncthing.uptime)} · 共 ${s.folders.length} 个项目 · ${s.devices.filter((d) => !d.self).filter((d) => d.connected).length}/${s.devices.filter((d) => !d.self).length} 台电脑在线`
-    : (s.syncthing.note || "");
-  const off = s.devices.filter((d) => !d.self && !d.connected).length;
-  $("heroNext").innerHTML = s.folders.length === 0
-    ? (['checking', 'engine_failed'].includes(s.setup?.key) ? '' : `<a class="btn primary" href="${s.setup?.route || '#/devices'}">${s.setup?.key === 'receive' ? '接收已有项目' : '接入已有项目'}</a> <a class="btn" href="#/folders">选择新文件夹</a>`)
-    : (off ? `<span class="mut small">有电脑离线中，回来后文件会自动补齐</span>` : "");
-  $("dashFolders").innerHTML = s.folders.map(folderCard).join("") ||
-    `<div class="sticker-empty"><img src="/assets/stickers/第12弹-加油.png" alt="">${esc(s.setup?.detail || '正在读取同步项目，请稍候')}</div>`;
+  const delivery = s.syncthing.api_ok ? (s.delivery || {}) : {};
+  const pendingPeers = s.folders.filter(f => !f.paused && (f.needItems ?? f.needFiles) > 0).flatMap(f => f.deviceIDs || []);
+  const waitingForPeers = pendingPeers.length > 0 && pendingPeers.every(id =>
+    s.devices.some(d => d.id === id && !d.connected));
+  const offline = delivery.state === 'offline' || (waitingForPeers && st.key !== 'red');
+  const delivered = delivery.state === 'delivered';
+  const sending = delivery.state === 'sending';
+  const first = s.syncthing.api_ok && !s.folders.length;
+  const syncing = st.key === 'blue';
+  const activeFolder = s.folders.find(f => ['syncing', 'sync-preparing'].includes(f.state));
+  const activePeer = activeFolder && s.devices.find(d => d.connected && activeFolder.deviceIDs?.includes(d.id));
+  const title = offline ? '等对方上线' : delivered ? '文件已送达' : sending ? '正在发送文件'
+    : syncing ? '正在同步文件' : first && s.setup?.key === 'empty' ? '先配对另一台电脑' : st.text;
+  if ($("heroState").textContent !== title) $("heroState").textContent = title;
+  $("syncHero").dataset.tone = offline ? 'offline' : st.key === 'red' ? 'error' : '';
+  const detail = offline ? delivery.device ? `${delivery.device} · 对方上线后会继续同步` : "共享设备暂未连接，上线后会继续同步"
+    : delivered ? `${s.folders.length} 个项目 · ${delivery.devices} 台电脑已同步`
+    : sending ? `${delivery.device} · 对方正在接收文件`
+    : syncing ? [activeFolder?.label, activePeer?.name, s.total.needFiles ? `还有 ${s.total.needFiles} 个文件` : ''].filter(Boolean).join(' · ')
+    : first ? s.setup?.detail : s.syncthing.api_ok
+      ? `${s.folders.length} 个项目 · ${s.devices.filter(d => !d.self && d.connected).length} 台电脑在线`
+      : s.syncthing.note;
+  $("heroDetail").textContent = detail || '';
+  const sticker = offline ? '困困' : delivered ? '敬礼' : syncing || sending ? '加油' : '挥手';
+  const art = '/assets/stickers/第12弹-' + sticker + '.png';
+  if ($("heroSticker").getAttribute('src') !== art) $("heroSticker").src = art;
+  $("localProgress").classList.toggle('hidden', !syncing);
+  $("syncMeter").value = Math.max(0, Math.min(100, s.total.pct));
+  $("ringPct").textContent = fmtPct(s.total.pct);
+  const routes = {
+    receive: ['#/folders', '接收已有项目'],
+    other_config: ['#/devices', '查看已有连接']
+  };
+  const next = st.key === 'red' ? ['#/about', '排查同步问题'] : offline ? ['#/devices', '查看设备']
+    : first ? (routes[s.setup?.key] || ['#/devices', '去配对'])
+    : s.folders.length ? ['#/folders', '查看同步项目'] : null;
+  const nextMarkup = next ? `<a class="btn primary" href="${next[0]}">${next[1]} →</a>` : '';
+  const heroNext = $("heroNext");
+  if (heroNext.dataset.link !== nextMarkup) {
+    heroNext.innerHTML = nextMarkup;
+    heroNext.dataset.link = nextMarkup;
+  }
+  $("dashFolders").innerHTML = s.folders.map(f => {
+    const peers = s.devices.filter(d => f.deviceIDs?.includes(d.id));
+    const names = peers.map(d => d.name).join('、');
+    const status = delivery.state === 'offline' && peers.some(d => !d.connected) && !f.paused && f.state === 'idle'
+      ? '对方离线' : f.state === 'idle' && !f.paused && !(f.needItems ?? f.needFiles) ? '本机已同步' : stateLabel(f);
+    return `<a class="dash-project" href="#/folders"><span class="project-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+      <span><strong>${esc(f.label)}</strong><small>${esc(names ? '本机 ⇄ ' + names : '尚未共享给其他设备')}</small></span>
+      <span class="project-state">${esc(status)}</span></a>`;
+  }).join("") || `<p class="dash-empty">${esc(s.setup?.detail || '配对后可以添加文件夹。')}</p>`;
   $("dashDevices").innerHTML = s.devices.map((d) =>
     `<span class="chip"><span class="dot ${d.self || d.connected ? "green" : "grey"}"></span>${esc(d.name)}${d.self ? "（本机）" : d.connected ? "" : " · 离线"}</span>`
   ).join("");
@@ -462,8 +500,8 @@ async function renderDashErrors() {
     const data = await api("GET", "/api/folder-errors");
     const lines = [];
     data.folders.forEach((f) => {
-      lines.push(`「${esc(f.folder)}」有 ${f.count} 个文件未同步。检查下方原因，修正后会自动重试：`);
-      f.items.forEach((it) => lines.push(`<span class="mono">…${esc(it.path.slice(-46))}</span>：${esc(it.message)}`));
+      lines.push(`「${esc(f.folder)}」的失败原因（最多显示 ${f.count} 条）：`);
+      f.items.forEach((it) => lines.push(`<span class="mono">…${esc(it.path.slice(-46))}</span>：${esc(it.message || "引擎未提供具体原因")}`));
     });
     box.innerHTML = lines.join("<br>");
   } catch (e) {
@@ -763,7 +801,7 @@ $("btnCopyFeedback").onclick = async () => {
     try {
       const v = await api('GET', '/api/version');
       const log = $("feedbackLogs").checked ? (await api('GET','/api/diagnostics')).text : '用户选择不附带日志';
-      const copied = await copyText(`捞鱼同步小助手 v${v.version}\n分类：${$("feedbackCategory").value}\n留言：${$("inFeedback").value}\n\n${log}`);
+      const copied = await copyText(`捞鱼文件夹同步 v${v.version}\n分类：${$("feedbackCategory").value}\n留言：${$("inFeedback").value}\n\n${log}`);
       $("fbMsg").textContent = copied ? '已复制，尚未发送给开发者。' : '复制失败，内容仍保留。';
     } catch(e) { $("fbMsg").textContent = friendly(e); }
   });
@@ -825,6 +863,7 @@ async function loadMeta() {
     $("feedbackChannel").textContent = FEEDBACK_CONFIGURED ? '留言和勾选的日志附件直接发送至作者的企业微信群，不经过捞鱼服务器；企业微信确认接收后才显示成功。' : '企业微信反馈渠道尚未配置，目前不能直达开发者；可先复制反馈与诊断。';
     HAS_PICKER = !!meta.has_window_picker;
     $("petEnabled").checked = meta.pet_enabled;
+    $("detailedLogging").checked = !!meta.detailed_logging;
     $("petSetting").classList.toggle("hidden", !meta.pet_supported);
     renderSyncNetwork(meta.sync_network);
     $("expertLink").dataset.external = meta.engine_url;
@@ -847,6 +886,15 @@ $("petEnabled").onchange = async e => {
   control.disabled = true;
   try { await api("POST", "/api/settings", {pet_enabled: enabled}); }
   catch(err) { control.checked = !enabled; toast(friendly(err)); }
+  finally { control.disabled = false; }
+};
+$("detailedLogging").onchange = async e => {
+  const control = e.target, enabled = control.checked;
+  control.disabled = true;
+  try {
+    await api('POST', '/api/settings', {detailed_logging: enabled});
+    toast(enabled ? '详细排障日志已开启' : '详细排障日志已关闭');
+  } catch (err) { control.checked = !enabled; toast(friendly(err)); }
   finally { control.disabled = false; }
 };
 function renderSyncNetwork(preference) {
@@ -891,8 +939,9 @@ function waitEngineApplied(seconds) {
     const tick = async () => {
       try {
         const p = await api("GET", "/api/network-preference");
-        if (p.state === "applied" || Date.now() > deadline) return resolve();
+        if (p.state === "applied") return resolve();
       } catch (_) { /* 引擎重启间隙的瞬时失败，继续等 */ }
+      if (Date.now() >= deadline) return resolve();
       setTimeout(tick, 3000);
     };
     tick();
@@ -918,6 +967,33 @@ async function onEngineTakeover() {
     btn.textContent = "一键接管：退出独立引擎并由小助手启动";
   }
 }
+async function runSyncDiagnosis(repair) {
+  const repairButton = $("btnSyncRepair");
+  const diagnoseButton = $("btnSyncDiagnose");
+  const report = $("syncRepairReport");
+  repairButton.disabled = diagnoseButton.disabled = true;
+  report.classList.remove("hidden");
+  report.textContent = repair ? "正在检查并尝试安全修复…" : "正在检查本机同步状态…";
+  try {
+    const result = repair ? await api("POST", "/api/sync-repair", {}) : await api("GET", "/api/sync-diagnose");
+    const actions = result.actions.map(action => `<p class="repair-action">${esc(action)}</p>`).join("");
+    const issues = result.issues.map(item => `<article class="repair-item">
+      <strong>${esc(item.title)}${item.folder ? ` · ${esc(item.folder)}` : ""}</strong>
+      <p>${esc(item.action)}</p>
+      ${item.evidence ? `<details><summary>查看引擎原始原因</summary><p>${esc(item.file)}<br>${esc(item.evidence)}</p></details>` : ""}
+    </article>`).join("");
+    report.innerHTML = actions + (result.notice ? `<p class="repair-action">${esc(result.notice)}</p>` : "")
+      + (issues || (!result.notice ? '<p class="repair-action">本轮未发现需要处理的同步问题。</p>' : ""));
+    if (repair && result.actions.length) pollStatus();
+  } catch (error) {
+    report.textContent = friendly(error);
+  } finally {
+    repairButton.disabled = diagnoseButton.disabled = false;
+  }
+}
+$("btnSyncRepair").onclick = () => runSyncDiagnosis(true);
+$("btnSyncDiagnose").onclick = () => runSyncDiagnosis(false);
+
 $("btnNetworkCheck").onclick = async () => {
   const btn = $("btnNetworkCheck"), box = $("networkCheckReport");
   btn.disabled = true;

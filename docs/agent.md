@@ -11,6 +11,7 @@
 - standards-remediation.md：本轮八项规范缺口的实现、验收与最终发行状态。
 - requirements-audit.md：软件开发规范逐项审计，完成证据与缺口。
 - requirements-audit-20261019.md：0.3.12 候选与 0.3.11 正式 CI 的最新规范核查；反馈、更新、启动器及文档缺口。
+- sync-repair.md：同步排查、受限修复、命令行入口。
 - sync-network.md：同步优先直连、代理分流规则、系统 VPN 边界与隔离验收。
 - network.md：Tailscale只读识别、既有Syncthing配置接入与状态边界。
 - tech.md：资源/用户数据/引擎分离与鉴权。

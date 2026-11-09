@@ -17,6 +17,9 @@ DATA_DIR = Path(os.environ.get('LAOYU_SYNC_DATA', _data)).resolve()
 CONFIG_PATH = DATA_DIR / "config.json"
 LOG_DIR = DATA_DIR / "logs"
 UI_DIR = ROOT / "ui"
+PRODUCT_NAME = "捞鱼文件夹同步"
+# 0.3.14 and older use this literal to identify a running local instance.
+LEGACY_PRODUCT_NAME = "捞鱼同步小助手"
 
 _DEFAULTS = {
     "token": "",
@@ -27,6 +30,7 @@ _DEFAULTS = {
     "review_dismissed_at": "",
     "last_update_attempt": "",
     "pet_enabled": True,
+    "detailed_logging": False,
     "sync_network_mode": "system",
     "launch_count": 0,
     "first_used": "",

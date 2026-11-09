@@ -14,7 +14,7 @@ try:
 except Exception:
     pass
 
-def windows_for(pid):
+def windows_for(pid, titles=('捞鱼同步小助手', '捞鱼文件夹同步')):
     u = ctypes.windll.user32
     u.IsWindowVisible.argtypes = [wintypes.HWND]
     u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
@@ -26,7 +26,7 @@ def windows_for(pid):
         u.GetWindowThreadProcessId(hwnd, ctypes.byref(owner))
         text = ctypes.create_unicode_buffer(512)
         u.GetWindowTextW(hwnd, text, 512)
-        if owner.value == pid and u.IsWindowVisible(hwnd) and '同步小助手' in text.value:
+        if owner.value == pid and u.IsWindowVisible(hwnd) and text.value in titles:
             found.append(int(hwnd))
         return True
     u.EnumWindows(callback_type(callback), 0)
@@ -78,7 +78,7 @@ def main():
         assert ack.is_file(), 'renderer/engine health ACK missing'
         result['ack'] = json.loads(ack.read_text(encoding='utf-8'))
         assert result['ack']['renderer_ready'] and result['ack']['engine_ready']
-        windows = windows_for(child.pid)
+        windows = windows_for(child.pid, titles=('捞鱼文件夹同步',))
         assert windows, 'main application window is not visible'
         result['visible_windows'] = windows
         token = json.loads((profile / 'data/config.json').read_text(encoding='utf-8'))['token']
@@ -90,7 +90,11 @@ def main():
                 return json.load(response)
         result['engine_ready'] = api('/api/status')['syncthing']['api_ok']
         assert result['engine_ready']
-        result['feedback_url_configured'] = api('/api/meta')['feedback_url_configured']
+        meta = api('/api/meta')
+        assert meta['product_name'] == '捞鱼文件夹同步'
+        assert meta['product'] == '捞鱼同步小助手', 'legacy identity changed'
+        result['product_name'] = meta['product_name']
+        result['feedback_url_configured'] = meta['feedback_url_configured']
         if not args.allow_unconfigured_feedback:
             assert result['feedback_url_configured'], 'packaged feedback channel missing'
         api('/api/settings', {'pet_enabled':False})

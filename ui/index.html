@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>捞鱼同步小助手</title>
+<title>捞鱼文件夹同步</title>
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div id="windowBar" class="window-bar hidden">
-  <div class="window-brand pywebview-drag-region"><svg class="fish-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c7-10 17-10 21 0-4 10-14 10-21 0Z"/><path d="m5 16-4-6v12Z"/><circle cx="22" cy="14" r="1.3"/></svg><span>捞鱼同步小助手</span><span class="window-tag">让文件跟上你</span></div>
+  <div class="window-brand pywebview-drag-region"><img src="/assets/brand.png" alt=""><span>捞鱼文件夹同步</span><span class="window-tag">让文件跟上你</span></div>
   <div class="window-controls">
     <button data-window-action="minimize" aria-label="最小化" title="最小化"><svg viewBox="0 0 16 16"><path d="M3 8h10"/></svg></button>
     <button data-window-action="maximize" aria-label="最大化或还原" title="最大化 / 还原"><svg viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9"/></svg></button>
@@ -26,25 +26,25 @@ window.addEventListener("error", function (e) {
 </script>
 <div id="noauth" class="noauth hidden">
   <img src="/assets/stickers/第12弹-困困.png" alt="">
-  <p>请从「启动捞鱼同步小助手」入口打开，直接访问缺少本机令牌。</p>
+  <p>请从「启动捞鱼文件夹同步」入口打开，直接访问缺少本机令牌。</p>
 </div>
 
 <div id="app" class="app hidden">
   <aside class="side">
     <div class="brand">
-      <div class="brand-logo"><svg class="fish-mark" viewBox="0 0 32 32" aria-hidden="true"><path d="M5 16c7-10 17-10 21 0-4 10-14 10-21 0Z"/><path d="m5 16-4-6v12Z"/><circle cx="22" cy="14" r="1.3"/></svg></div>
-      <div><div class="brand-name">捞鱼同步小助手</div><div class="brand-sub">文件同步 · 连接沿用</div></div>
+      <div class="brand-logo"><img src="/assets/brand.png" alt=""></div>
+      <div><div class="brand-name">捞鱼文件夹同步</div><div class="brand-sub">文件邮差</div></div>
     </div>
     <nav>
-      <a href="#/" data-page="dash" class="active">仪表盘</a>
-      <a href="#/devices" data-page="devices">设备与配对<span id="dot-devices" class="nav-dot hidden"></span></a>
+      <a href="#/" data-page="dash" class="active">同步概览</a>
       <a href="#/folders" data-page="folders">同步项目<span id="dot-folders" class="nav-dot hidden"></span></a>
-      <a href="#/events" data-page="events">动态</a>
+      <a href="#/devices" data-page="devices">设备与配对<span id="dot-devices" class="nav-dot hidden"></span></a>
+      <a href="#/events" data-page="events">同步动态</a>
       <a href="#/feedback" data-page="feedback">遇到问题反馈</a>
       <a href="#/about" data-page="about">设置 / 关于</a>
     </nav>
     <div class="side-foot">
-      <span id="verBadge" class="ver-badge" title="查看更新日志">v0.3.3</span>
+      <span id="verBadge" class="ver-badge" title="查看更新日志">…</span>
     </div>
   </aside>
 
@@ -63,7 +63,32 @@ window.addEventListener("error", function (e) {
     <div id="updateProgress" class="banner hidden"><progress id="updateMeter" max="100" value="0"></progress><span id="updateMessage"></span><a href="#" data-external="https://github.com/lyzbcy/laoyu-sync/releases">手动下载</a></div>
     <!-- 仪表盘 -->
     <section id="page-dash" class="page">
-      <div class="page-heading"><div><span class="eyebrow">你的文件，随时就位</span><h1>同步概览</h1></div><span class="heading-note">连接继续，配置沿用</span></div>
+      <div class="page-heading"><h1>同步概览</h1></div>
+      <div id="syncHero" class="hero">
+        <div class="hero-info">
+          <span class="hero-eyebrow">文件同步</span>
+          <h2 id="heroState" class="hero-state" aria-live="polite">正在读取同步状态…</h2>
+          <p id="heroDetail" class="mut"></p>
+          <div id="localProgress" class="hero-progress hidden">
+            <progress id="syncMeter" max="100" value="0" aria-label="本机同步进度"></progress>
+            <span id="ringPct"></span>
+          </div>
+          <div id="heroNext" class="hero-next"></div>
+          <button id="btnEngineStart" class="btn small hidden" type="button">重试启动引擎</button>
+        </div>
+        <div class="hero-art" aria-hidden="true"><img id="heroSticker" src="/assets/stickers/第12弹-挥手.png" alt=""></div>
+      </div>
+
+      <div id="pendingAlert" class="banner pending-banner hidden">
+        <span id="pendingAlertText"></span>
+        <button id="btnGoPending" class="btn small primary">去接收</button>
+      </div>
+
+      <div class="project-heading"><h3 class="sec-title">同步项目</h3><a href="#/folders">全部项目 →</a></div>
+      <div id="dashFolders" class="folder-grid"></div>
+      <div id="dashErrors" class="errbox hidden"></div>
+      <details class="dash-diagnostics">
+        <summary>连接与诊断</summary>
       <div id="connectionCard" class="connection-card">
         <div class="connection-icon"><svg viewBox="0 0 24 24"><path d="M8 12h8M7 5v3m10-3v3M7 16v3m10-3v3"/><circle cx="7" cy="12" r="3"/><circle cx="17" cy="12" r="3"/></svg></div>
         <div class="connection-copy"><strong id="networkTitle">正在识别已有连接</strong><p id="networkDetail">有现成的网络和同步配置？小助手会自动沿用。</p><p id="engineAdoption" class="small mut"></p></div>
@@ -74,38 +99,9 @@ window.addEventListener("error", function (e) {
         <p id="onboardingSteps">① 两边安装并打开助手　② <a href="#/devices">交换电脑号码并互相接受</a>　③ <a href="#/folders">选文件夹、共享并在另一台接收</a></p>
         <details class="small mut"><summary>已有项目没有出现？查看识别位置</summary><p>当前读取：<span id="configLocation">正在检测</span></p><p>如果原同步工具使用其他位置，请先打开原工具，再启动助手。另一台电脑上的项目需要共享给本机，并选择接收位置。</p></details>
         <p class="mut small">同步会把修改和删除传到其他设备，请先用测试文件夹体验。新项目默认保留远端覆盖/删除的旧文件 30 天；同步不能代替备份。对方离线时，本机已同步不代表对方已收到。</p>
-        <button id="btnEngineStart" class="btn small">重试启动引擎</button>
       </div>
-      <div class="cards">
-        <div class="card hero">
-          <div class="ring-wrap">
-            <svg viewBox="0 0 120 120" class="ring">
-              <circle cx="60" cy="60" r="52" class="ring-bg"/>
-              <circle id="ringFg" cx="60" cy="60" r="52" class="ring-fg loading"/>
-            </svg>
-            <div class="ring-num"><div id="ringPct" class="big">…</div><div class="mut">本机同步进度</div></div>
-          </div>
-          <div class="hero-info">
-            <div id="heroState" class="hero-state">正在读取文件同步状态…</div>
-            <div id="heroDetail" class="mut"></div>
-            <div id="heroNext" class="hero-next"></div>
-          </div>
-        </div>
-        <div class="card">
-          <h3>我的电脑们</h3>
-          <div id="dashDevices" class="dev-chips"></div>
-          <p class="mut small">想让新电脑加入？去 <a href="#/devices">设备与配对</a> 复制一串号码发给对方就行。</p>
-        </div>
-      </div>
-
-      <div id="pendingAlert" class="banner pending-banner hidden">
-        <span id="pendingAlertText"></span>
-        <button id="btnGoPending" class="btn small primary">去接收</button>
-      </div>
-
-      <h3 class="sec-title">同步项目</h3>
-      <div id="dashFolders" class="folder-grid"></div>
-      <div id="dashErrors" class="errbox hidden"></div>
+        <div class="card"><h3>设备连接</h3><div id="dashDevices" class="dev-chips"></div></div>
+      </details>
     </section>
 
     <!-- 设备与配对 -->
@@ -201,11 +197,21 @@ window.addEventListener("error", function (e) {
       </div>
     </section>
 
-    <!-- 关于 -->
+    <!-- 设置与关于 -->
     <section id="page-about" class="page hidden">
-      <div class="about">
+      <div class="page-heading settings-heading"><div><h1>设置与关于</h1><p class="mut">在这里排查同步问题、管理连接和桌面小精灵。</p></div></div>
+      <div class="settings-grid">
+        <div class="settings-stack">
+          <section class="card settings-repair">
+            <div class="settings-card-head"><h2>同步排查</h2><p>检查项目、设备和引擎。可以一并重试符合条件的本机故障。</p></div>
+            <div class="settings-actions">
+              <button id="btnSyncRepair" class="btn small primary" type="button">排查并自动修复</button>
+              <button id="btnSyncDiagnose" class="btn small" type="button">仅排查</button>
+            </div>
+            <div id="syncRepairReport" class="repair-report hidden" aria-live="polite"></div>
+          </section>
         <div class="card sync-network-card">
-          <h2>同步网络</h2>
+          <div class="settings-card-head"><h2>同步网络</h2><p>选择文件同步使用的连接方式。</p></div>
           <label for="syncNetworkMode">文件同步连接方式</label>
           <div class="sync-mode-row">
             <select id="syncNetworkMode">
@@ -216,12 +222,12 @@ window.addEventListener("error", function (e) {
           </div>
           <p id="syncNetworkStatus" class="small mut" role="status" aria-live="polite">正在读取设置…</p>
           <div class="network-check-box">
-            <button id="btnNetworkCheck" class="btn small" type="button">一键自检</button>
+            <button id="btnNetworkCheck" class="btn small" type="button">检查直连状态</button>
             <span class="small mut">检查引擎归属、本地代理端口、系统层接管与转发痕迹</span>
             <div id="networkCheckReport" class="hidden" aria-live="polite"></div>
           </div>
-          <p class="small mut">自检只收集本机旁证，不读取代理软件；是否省代理流量最终以代理软件的连接记录为准。只影响文件同步，更新和反馈沿用原有网络。修改后退出并重新打开小助手生效；如果沿用了其他工具启动的引擎，需先从原工具退出引擎。</p>
-          <details>
+          <p class="small mut">设置只影响文件同步。保存后重开助手；独立引擎需先从原工具退出。自检结果请结合代理软件的连接记录核对。</p>
+          <details class="settings-fold">
             <summary>开着 TUN／全局 VPN？添加同步直连规则</summary>
             <p class="small mut">系统层代理仍可能接管同步流量。上面的开关无法保证绕过 TUN；请添加规则后，在代理软件的连接记录中确认 syncthing 的连接使用 DIRECT／直连。Syncthing 的中继连接也可能使用直连出站，不能仅看是否经过中继。</p>
             <label for="syncRuleFormat">选择配置格式</label>
@@ -231,40 +237,41 @@ window.addEventListener("error", function (e) {
             <p class="small mut">使用 Tailscale 等组网工具时，它自身的连接也可能被代理接管，需要同时为组网工具设置直连。进程识别或分流不受支持时，无法保证节省代理流量；请勿用整个项目文件夹作为排除规则。</p>
           </details>
         </div>
-        <div class="card about-card">
-          <img class="avatar" src="https://s41.ax1x.com/2025/12/05/pZmPZPH.png" alt="捞鱼"
-               onerror="this.style.display='none'">
-          <div class="about-head">
-            <div class="about-name">🐟 捞鱼</div>
-            <div class="mut">一个弱小但有梦想的开发者</div>
-            <div class="mut small">「捞鱼同步小助手」由 捞鱼工作室 制作</div>
-          </div>
-          <p class="mut small">本软件是在开源软件 <a href="#" data-external="https://syncthing.net">Syncthing</a> 基础上做的中文易用外壳，同步能力与数据格式完全兼容官方版。开源在 <a href="#" data-external="https://github.com/lyzbcy/laoyu-sync">github.com/lyzbcy/laoyu-sync</a>。</p>
-          <div class="about-links">
-            <a class="btn small primary" href="#" data-external="https://github.com/lyzbcy/laoyu-sync">⭐ 去给项目点个 Star（对我很有帮助）</a>
-            <a class="btn small" href="#" data-external="https://github.com/lyzbcy/laoyu-sync/releases">📦 下载更新包</a>
-          </div>
-          <div class="about-links">
-            <a class="btn small" href="#" data-external="https://lyzbcy.github.io/">🏠 了解更多关于捞鱼</a>
-            <a class="btn small" href="#" data-external="https://lyzbcy.github.io/weshoto-study/">😀 我的原创表情包</a>
-          </div>
-          <div class="qr-row">
-            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/sticker/sticker-qr.png" onerror="this.parentNode.classList.add('broken')"><figcaption>表情包</figcaption></figure>
-            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/reward-qr.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>请作者喝杯咖啡</figcaption></figure>
-            <figure><img src="https://lyzbcy.github.io/weshoto-study/img/qq-group.jpg" onerror="this.parentNode.classList.add('broken')"><figcaption>加入 QQ 群</figcaption></figure>
-          </div>
-          <a class="btn small" href="#/feedback">遇到问题反馈</a>
-          <div class="about-more">
-            <div class="row ver-row">
-              <button id="btnCheckUpdate" class="btn small" type="button">检查更新</button>
-              <span id="checkUpdateMsg" class="form-msg"></span>
+          <section class="card">
+            <div class="settings-card-head"><h2>桌面与日志</h2><p>管理文件邮差，以及排障时要保留的日志。</p></div>
+            <label id="petSetting" class="setting-switch"><span><strong>桌面小精灵</strong><small>显示同步进度、送达和离线状态</small></span><input type="checkbox" id="petEnabled"></label>
+            <label class="setting-switch"><span><strong>详细排障日志</strong><small>需要排查时开启，结束后可关掉</small></span><input type="checkbox" id="detailedLogging"></label>
+            <div class="settings-actions">
+              <button id="btnLogs" class="btn small" type="button">复制诊断日志</button>
+              <a id="expertLink" href="#" data-external="http://127.0.0.1:8384" class="link">Syncthing 高级设置</a>
             </div>
-            <label id="petSetting" class="check-line"><input type="checkbox" id="petEnabled">显示桌面小精灵（小蓝鱼，关闭后记住选择）</label>
-            <button id="btnLogs" class="btn small">复制诊断日志</button>
-            <a id="expertLink" href="#" data-external="http://127.0.0.1:8384" class="mut small">专家模式（Syncthing 原生英文设置，日常不用进）</a>
-          </div>
-          <img class="about-sticker" src="/assets/stickers/第11弹-谢谢.png" alt="谢谢">
+          </section>
         </div>
+        <aside class="settings-stack" aria-label="应用与作者">
+          <section class="card settings-product">
+            <div class="product-identity"><img src="/assets/brand.png" alt=""><div><h2>捞鱼文件夹同步</h2><p class="mut">捞鱼工作室</p></div></div>
+            <p class="mut">让不同电脑上的同一个文件夹自动保持更新。</p>
+            <div class="settings-actions">
+              <button id="btnCheckUpdate" class="btn small" type="button">检查更新</button>
+              <a class="link" href="#" data-external="https://github.com/lyzbcy/laoyu-sync/releases">发行记录</a>
+            </div>
+            <p id="checkUpdateMsg" class="form-msg" role="status"></p>
+          </section>
+          <section class="card settings-author">
+            <div class="settings-card-head"><h2>联系与支持</h2><p>遇到问题可以直接留言给作者。</p></div>
+            <div class="settings-actions"><a class="btn small" href="#/feedback">问题反馈</a><a class="link" href="#" data-external="https://github.com/lyzbcy/laoyu-sync">项目源码</a></div>
+            <details class="settings-fold">
+              <summary>关于作者与原创表情</summary>
+              <p class="mut small">由捞鱼工作室制作，文件同步由 <a href="#" data-external="https://syncthing.net">Syncthing</a> 提供。</p>
+              <div class="settings-actions"><a href="#" data-external="https://lyzbcy.github.io/">作者主页</a><a href="#" data-external="https://lyzbcy.github.io/weshoto-study/">原创表情包</a></div>
+              <div class="settings-qr">
+                <figure><img src="https://lyzbcy.github.io/weshoto-study/img/sticker/sticker-qr.png" alt="表情包二维码" loading="lazy" onerror="this.parentNode.hidden=true"><figcaption>表情包</figcaption></figure>
+                <figure><img src="https://lyzbcy.github.io/weshoto-study/img/reward-qr.jpg" alt="请作者喝杯咖啡二维码" loading="lazy" onerror="this.parentNode.hidden=true"><figcaption>请喝咖啡</figcaption></figure>
+                <figure><img src="https://lyzbcy.github.io/weshoto-study/img/qq-group.jpg" alt="加入 QQ 群二维码" loading="lazy" onerror="this.parentNode.hidden=true"><figcaption>QQ 群</figcaption></figure>
+              </div>
+            </details>
+          </section>
+        </aside>
       </div>
     </section>
     <section id="page-feedback" class="page hidden">

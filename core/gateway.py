@@ -22,6 +22,7 @@ import updater
 import feedback
 import network_check
 import sync_network
+import sync_repair
 import stmanager
 from wizard import WizardError
 
@@ -72,9 +73,11 @@ def make_handler(mgr):
         def log_message(self, fmt, *args):  # 访问日志进开发日志（日志系统规范）
             text = re.sub(r'([?&](?:t|token)=)[^&\s"]+', r'\1[hidden]', fmt % args)
             # Successful polling used to erase all meaningful startup evidence from log tails.
-            if re.search(r'"GET /api/(?:status|events|pending|version|update/status)(?:[? ][^"\n]*)? HTTP/1\.[01]" 200', text):
+            if re.search(r'"GET /api/(?:status|events|pending|version|update/status)(?:[? ][^"\n]*)? HTTP/1\.[01]" 200', text) and not activity.detailed_enabled():
                 return
-            activity.dev("http %s %s", self.address_string(), text)
+            # Ordinary failures keep INFO evidence; repetitive success polling is DEBUG-only.
+            log = activity.detail if re.search(r'" 200(?: |$)', text) else activity.dev
+            log("http %s %s", self.address_string(), text)
 
         # ---------- 工具
 
@@ -132,7 +135,7 @@ def make_handler(mgr):
                 self._err(f"服务内部错误：{exc}", 500)
 
         def do_POST(self):
-            if urllib.parse.urlparse(self.path).path == '/api/feedback':
+            if urllib.parse.urlparse(self.path).path in ('/api/feedback', '/api/sync-repair'):
                 return self._post()
             # Serialize configuration mutations; Syncthing remains the source of truth.
             with wizard.MUTATION_LOCK:
@@ -146,6 +149,8 @@ def make_handler(mgr):
                 body = self._body()
                 if path == '/api/folder/update':
                     return self._json(wizard.update_folder_flow(mgr, body.get('folder_id'), body.get('devices'), body.get('paused')))
+                if path == '/api/sync-repair':
+                    return self._json(sync_repair.run(mgr, repair=True))
                 if path == '/api/engine/start':
                     threading.Thread(target=mgr.ensure_running, daemon=True).start()
                     return self._json({'ok': True})
@@ -162,6 +167,8 @@ def make_handler(mgr):
                 if path == '/api/update/start':
                     return self._json(updater.start())
                 if path == '/api/settings':
+                    if 'detailed_logging' in body:
+                        activity.set_detailed(body['detailed_logging'])
                     if 'sync_network_mode' in body:
                         sync_network.set_mode(body['sync_network_mode'])
                     if 'pet_enabled' in body:
@@ -205,6 +212,8 @@ def make_handler(mgr):
         # ---------- API 实现
 
         def route_api(self, path, qs):
+            if path == '/api/sync-diagnose':
+                return self._json(sync_repair.run(mgr))
             if path == '/api/network-rules':
                 return self._json(sync_network.bypass_rules(qs.get('format', ['clash'])[0]))
             if path == '/api/network-preference':
@@ -235,10 +244,12 @@ def make_handler(mgr):
                 return self._json(version.local_info())
             if path == "/api/meta":
                 return self._json({
-                    "product": "捞鱼同步小助手",
+                    "product": config.LEGACY_PRODUCT_NAME,
+                    "product_name": config.PRODUCT_NAME,
                     "has_window_picker": PICKER_AVAILABLE,
                     "feedback_url_configured": bool(config.get("feedback_url")),
                     "pet_enabled": bool(config.get('pet_enabled')),
+                    "detailed_logging": activity.detailed_enabled(),
                     "pet_supported": PET_SUPPORTED,
                     "sync_network": stmanager.network_preference(),
                     "platform": __import__('platform').system(),

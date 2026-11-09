@@ -163,7 +163,7 @@ def main():
             req = urllib.request.Request(f'http://127.0.0.1:{port}/api/meta', headers={'X-Token': cfg['token']})
             with urllib.request.urlopen(req, timeout=2) as resp:
                 existing = json.load(resp)
-            if existing.get('product') != '捞鱼同步小助手':
+            if existing.get('product') != config.LEGACY_PRODUCT_NAME:
                 raise RuntimeError('端口被其他软件占用')
             if not args.headless:
                 webbrowser.open(url)
@@ -172,7 +172,7 @@ def main():
             activity.error('cannot start gateway: %s', exc)
             if platform.system() == 'Windows' and not args.headless:
                 import ctypes
-                ctypes.windll.user32.MessageBoxW(0, '本机端口被占用，请关闭已有程序或更改配置端口。', '捞鱼同步小助手', 0x10)
+                ctypes.windll.user32.MessageBoxW(0, '本机端口被占用，请关闭已有程序或更改配置端口。', '捞鱼文件夹同步', 0x10)
             raise RuntimeError('本机服务端口被占用') from exc
     activity.dev("gateway serving on loopback port %s", port)
     config.set('launch_count', int(config.get('launch_count') or 0) + 1)
@@ -194,6 +194,7 @@ def main():
             pet_controller.close()
             server.shutdown()
             stop_owned()
+            activity.flush()
             cleaned_up = True
     if args.headless:
         try:
@@ -225,11 +226,17 @@ def main():
         return
 
     window = webview.create_window(
-        "捞鱼同步小助手", url, width=1180, height=780, min_size=(920, 620),
-        background_color="#EDF3F0", js_api=Bridge(mgr, args.upgrade_ack),
+        config.PRODUCT_NAME, url, width=1180, height=780, min_size=(920, 620),
+        background_color="#EEF2E9", js_api=Bridge(mgr, args.upgrade_ack),
         frameless=platform.system() == 'Windows', easy_drag=False,
     )
-    activity.user("捞鱼同步小助手已启动")
+    if platform.system() == 'Darwin':
+        def style_native_titlebar():
+            from AppKit import NSColor
+            window.native.setTitlebarAppearsTransparent_(True)
+            window.native.setBackgroundColor_(NSColor.colorWithSRGBRed_green_blue_alpha_(.933, .949, .914, 1))
+        window.events.before_show += style_native_titlebar
+    activity.user(config.PRODUCT_NAME + "已启动")
     def loaded():
         def start_pet():
             try:
