@@ -1,6 +1,10 @@
 """Draw the sprite above Tk's transparent Aqua canvas."""
 
-from AppKit import NSApplication, NSBitmapImageRep, NSData, NSImage, NSImageScaleNone, NSImageView
+from AppKit import (
+    NSApplication, NSBitmapImageRep, NSBox, NSBoxCustom, NSColor, NSData, NSFont,
+    NSImage, NSImageScaleNone, NSImageView, NSLineBreakByTruncatingTail, NSNoBorder,
+    NSTextAlignmentCenter, NSTextField,
+)
 from Quartz import CGImageCreateWithImageInRect
 
 
@@ -8,6 +12,10 @@ class SpriteView(NSImageView):
     def hitTest_(self, point):
         # Leave clicks, dragging and context menus to the Tk canvas underneath.
         return None
+
+
+def _color(rgb):
+    return NSColor.colorWithSRGBRed_green_blue_alpha_(*(channel / 255 for channel in rgb), 1)
 
 
 class MacSprite:
@@ -27,6 +35,31 @@ class MacSprite:
         self.view = SpriteView.alloc().initWithFrame_(((0, 0), (frame_size, frame_size)))
         self.view.setImageScaling_(NSImageScaleNone)
         self.content.addSubview_(self.view)
+
+    def add_caption(self, width, height, bottom):
+        badge = NSBox.alloc().initWithFrame_((((self.size - width) / 2, bottom), (width, height)))
+        badge.setBoxType_(NSBoxCustom)
+        badge.setBorderType_(NSNoBorder)
+        badge.setCornerRadius_(8)
+        badge.setContentViewMargins_((0, 0))
+        badge.setFillColor_(_color((247, 248, 243)))
+        self.view.addSubview_(badge)
+        self.title = NSTextField.labelWithString_('')
+        self.detail = NSTextField.labelWithString_('')
+        self.title.setFont_(NSFont.boldSystemFontOfSize_(10))
+        self.detail.setFont_(NSFont.systemFontOfSize_(9))
+        self.detail.setTextColor_(_color((82, 102, 90)))
+        for label, y, line_height in ((self.title, 12, 14), (self.detail, 2, 11)):
+            label.setFrame_(((4, y), (width - 8, line_height)))
+            label.setAlignment_(NSTextAlignmentCenter)
+            label.setMaximumNumberOfLines_(1)
+            label.setLineBreakMode_(NSLineBreakByTruncatingTail)
+            badge.contentView().addSubview_(label)
+
+    def set_caption(self, title, detail, error):
+        self.title.setTextColor_(_color((159, 38, 34) if error else (24, 46, 37)))
+        self.title.setStringValue_(title)
+        self.detail.setStringValue_(detail)
 
     def set_frame(self, name, index):
         size = self.size

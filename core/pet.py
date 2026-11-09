@@ -27,14 +27,13 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import tkinter as tk
+from tkinter import font as tkfont
 import config
 from stmanager import api_open
 
 TRANS = "#010203"          # 透明色（小精灵不会用到这个颜色）
 _FONT_NAME = "PingFang SC" if sys.platform == "darwin" else "Microsoft YaHei UI"
 FONT = (_FONT_NAME, 9)
-FONT_B = (_FONT_NAME, 10, "bold")
-FONT_S = (_FONT_NAME, 8)
 
 AUTO_START_SYNCTHING = False  # 引擎由主程序统一管理
 POLL_SECONDS = 2
@@ -42,6 +41,7 @@ POLL_SECONDS = 2
 SPRITES = {'syncing': 20, 'delivered': 20, 'waiting': 14}
 FRAME_SIZE = 128
 FRAME_COUNT = 49
+CAPTION_WIDTH, CAPTION_HEIGHT, CAPTION_BOTTOM = 84, 27, 10
 ART_DIR = config.ROOT / 'assets'
 
 
@@ -267,8 +267,9 @@ def aggregate(snap):
     elif syncing:
         s0 = syncing[0]["state"]
         key = "scanning" if s0 == "scanning" else "syncing"
-        big = "扫描中" if s0 == "scanning" else "同步中"
-        small = f"{fmt_pct(pct)} · 剩 {fmt_bytes(total - insync)}"
+        verb = "扫描中" if s0 == "scanning" else "同步中"
+        big = f"{verb} {fmt_pct(pct)}"
+        small = f"剩余 {fmt_bytes(total - insync)}"
     elif waiting:
         key = "pending"
         big = waiting[0]["state"]
@@ -330,7 +331,7 @@ class PetApp:
         self._frame_job = None
         self.S = max(1.0, root.winfo_fpixels("1i") / 96.0)  # DPI 缩放系数
 
-        w, h = int(190 * self.S), int(200 * self.S)
+        w, h = FRAME_SIZE + int(32 * self.S), FRAME_SIZE + int(26 * self.S)
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         self.x = int(sw - w - 30 * self.S)
         self.y = int(sh - h - 90 * self.S)
@@ -342,7 +343,7 @@ class PetApp:
 
         self.canvas = tk.Canvas(root, width=w, height=h, bg=background, highlightthickness=0)
         self.canvas.pack()
-        self._draw_static(w, h)
+        self._draw_static(w)
 
         self.panel = tk.Toplevel(root)
         self.panel.title("同步详情")
@@ -482,9 +483,9 @@ class PetApp:
                 window.setFrameOrigin_((self.x, height - self.y - window.frame().size.height))
                 break
 
-    def _draw_static(self, w, h):
+    def _draw_static(self, w):
         c, s = self.canvas, self.S
-        cx, cy = w // 2, int(8 * s) + FRAME_SIZE // 2
+        cx, cy = w // 2, int(10 * s) + FRAME_SIZE // 2
         radius = FRAME_SIZE // 2 + int(6 * s)
         bounds = cx - radius, cy - radius, cx + radius, cy + radius
         self.track = c.create_oval(*bounds, outline='#C8DACD', width=max(2, int(3 * s)), state='hidden')
@@ -498,6 +499,7 @@ class PetApp:
             # Aqua Tk can drop PhotoImage pixels on transparent canvases.
             self.root.update_idletasks()
             self.mac_sprite = MacSprite(self.root.title(), ART_DIR / 'pet', SPRITES, FRAME_SIZE)
+            self.mac_sprite.add_caption(CAPTION_WIDTH, CAPTION_HEIGHT, CAPTION_BOTTOM)
         else:
             self.atlases = {
                 key: tk.PhotoImage(master=self.root, file=str(ART_DIR / 'pet' / f'{key}.png'))
@@ -505,18 +507,44 @@ class PetApp:
             }
             self.frame = tk.PhotoImage(master=self.root, width=FRAME_SIZE, height=FRAME_SIZE)
             self.sprite_item = c.create_image(self.sprite_x, self.sprite_y, image=self.frame, anchor='n')
+            self._draw_caption()
         self.icon = tk.PhotoImage(master=self.root, file=str(ART_DIR / 'app.png'))
         self.root.iconphoto(True, self.icon)
-        left, right, top, bottom = int(8*s), w-int(8*s), int(149*s), h-int(5*s)
-        corner = int(10*s)
-        c.create_polygon(left+corner, top, right-corner, top, right, top, right, top+corner,
-                         right, bottom-corner, right, bottom, right-corner, bottom, left+corner, bottom,
-                         left, bottom, left, bottom-corner, left, top+corner, left, top,
-                         smooth=True, fill='#F7F8F3', outline='')
-        self.big_txt = c.create_text(cx, int(161*s), text="正在连接…", font=FONT_B, fill="#182E25")
-        self.small_txt = c.create_text(cx, int(182*s), text="", font=FONT_S, fill="#52665A",
-                                       width=w-int(24*s))
+        self._set_caption('正在连接…', '')
         self._set_sprite('waiting', 'idle')
+
+    def _draw_caption(self):
+        c, cx = self.canvas, self.sprite_x
+        bottom = self.sprite_y + FRAME_SIZE - CAPTION_BOTTOM
+        top = bottom - CAPTION_HEIGHT
+        left, right = cx - CAPTION_WIDTH // 2, cx + CAPTION_WIDTH // 2
+        r = 8
+        c.create_polygon(left+r, top, right-r, top, right, top, right, top+r,
+                         right, bottom-r, right, bottom, right-r, bottom, left+r, bottom,
+                         left, bottom, left, bottom-r, left, top+r, left, top,
+                         smooth=True, fill='#F7F8F3', outline='', tags='caption')
+        self.caption_fonts = (
+            tkfont.Font(root=self.root, family=_FONT_NAME, size=-10, weight='bold'),
+            tkfont.Font(root=self.root, family=_FONT_NAME, size=-9),
+        )
+        self.big_txt = c.create_text(cx, top + 8, font=self.caption_fonts[0], tags='caption')
+        self.small_txt = c.create_text(cx, top + 19, font=self.caption_fonts[1],
+                                       fill='#52665A', tags='caption')
+        self.caption_offset = 0
+
+    def _set_caption(self, title, detail, error=False):
+        title, detail = (' '.join(line.split()) for line in (title, detail))
+        if self.mac_sprite is not None:
+            self.mac_sprite.set_caption(title, detail, error)
+            return
+        self.canvas.itemconfig(self.big_txt, fill='#9F2622' if error else '#182E25')
+        for item, font, line in zip((self.big_txt, self.small_txt), self.caption_fonts, (title, detail)):
+            if font.measure(line) > CAPTION_WIDTH - 8:
+                end = min(len(line), CAPTION_WIDTH)
+                while end and font.measure(line[:end] + '…') > CAPTION_WIDTH - 8:
+                    end -= 1
+                line = line[:end].rstrip() + '…'
+            self.canvas.itemconfig(item, text=line)
 
     def _set_sprite(self, name, mode):
         selection = name, mode
@@ -561,6 +589,9 @@ class PetApp:
             self.mac_sprite.move(self.sprite_x, self.sprite_y + offset)
         else:
             self.canvas.coords(self.sprite_item, self.sprite_x, self.sprite_y + offset)
+            if offset != self.caption_offset:
+                self.canvas.move('caption', 0, offset - self.caption_offset)
+                self.caption_offset = offset
         if mode != 'static':
             interval = 85 if breathing and index in (0, FRAME_COUNT - 1) else round(1000 / fps)
             self._frame_job = self.root.after(interval, self._draw_frame)
@@ -583,8 +614,7 @@ class PetApp:
         self.canvas.itemconfig(self.track, state='normal' if show_progress else 'hidden')
         self.canvas.itemconfig(self.progress, state='normal' if show_progress and pct > 0 else 'hidden',
                                extent=-min(359.9, (pct or 0) * 3.6))
-        self.canvas.itemconfig(self.big_txt, text=big, fill='#9F2622' if key == 'error' else '#182E25')
-        self.canvas.itemconfig(self.small_txt, text=small)
+        self._set_caption(big, small, error=key == 'error')
         if self.panel_visible:
             self._update_panel_text()
             self._place_panel()
