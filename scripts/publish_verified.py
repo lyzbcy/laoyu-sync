@@ -3,6 +3,7 @@
 Large transfers stay on the runner instead of consuming a developer's proxy quota.
 The stable source manifest is deliberately updated separately after this succeeds.
 """
+import ast
 import hashlib
 import json
 import os
@@ -37,19 +38,47 @@ def release_for_tag(tag):
     raise ValueError('Release not visible after create: ' + tag)
 
 
-def validate():
-    run_id = os.environ['BUILD_RUN_ID']
+def validated_run(run_id, job):
     if not re.fullmatch(r'[0-9]+', run_id):
         raise ValueError('Invalid build run ID')
     run = json.loads(gh('api', f'repos/{REPO}/actions/runs/{run_id}'))
-    if run['conclusion'] != 'success' or run['path'] != '.github/workflows/build.yml' or run['event'] != 'workflow_dispatch':
-        raise ValueError('A successful package build is required')
-    subprocess.run(['git','diff','--exit-code',run['head_sha'],'--','core','ui',
-        'LaoyuSync.spec','installer','assets','requirements.txt','scripts/package.py',
-        'scripts/package_mac.py','scripts/prepare_feedback.py','scripts/make_icon.py',
-        'scripts/fetch_engine.py','scripts/prepare_resources.py','.github/workflows/build.yml'], check=True)
+    if run['status'] != 'completed' or run['path'] != '.github/workflows/build.yml' or run['event'] != 'workflow_dispatch':
+        raise ValueError('A completed package build is required')
+    jobs = json.loads(gh('api', f'repos/{REPO}/actions/runs/{run_id}/jobs?filter=latest'))['jobs']
+    matches = [entry for entry in jobs if entry['name'] == job]
+    if len(matches) != 1 or matches[0]['conclusion'] != 'success':
+        raise ValueError('Native build job did not succeed: ' + job)
+    return run
+
+
+def upstream_recipe(revision):
+    # Only the network retry wrapper can differ across the two verified builds.
+    source = subprocess.check_output(['git','show',revision + ':scripts/fetch_engine.py'])
+    body = ast.parse(source).body
+    return [ast.dump(node) for node in body if (
+        isinstance(node, ast.FunctionDef) and node.name == 'main'
+        or isinstance(node, ast.Assign) and any(
+            isinstance(target, ast.Name) and target.id in ('VERSION', 'BASE') for target in node.targets))]
+
+
+def validate():
+    run_id = os.environ['BUILD_RUN_ID']
+    mac_id = os.environ.get('MACOS_BUILD_RUN_ID') or run_id
+    windows = validated_run(run_id, 'windows')
+    macos = validated_run(mac_id, 'macos')
+    if run_id == mac_id and windows['conclusion'] != 'success':
+        raise ValueError('Combined build did not succeed')
+    runtime_inputs = ['core','ui','LaoyuSync.spec','installer','assets','requirements.txt',
+        'scripts/package.py','scripts/package_mac.py','scripts/prepare_feedback.py',
+        'scripts/make_icon.py','scripts/prepare_resources.py','.github/workflows/build.yml']
+    subprocess.run(['git','diff','--exit-code',windows['head_sha'],'--',
+                    *runtime_inputs,'scripts/fetch_engine.py'], check=True)
+    subprocess.run(['git','diff','--exit-code',macos['head_sha'],'--',*runtime_inputs], check=True)
+    if upstream_recipe(macos['head_sha']) != upstream_recipe(windows['head_sha']):
+        raise ValueError('Pinned upstream engine version or extraction differs')
     ROOT.mkdir(exist_ok=True)
-    (ROOT/'build.json').write_text(json.dumps(dict(run_id=run_id, source=run['head_sha'])))
+    (ROOT/'build.json').write_text(json.dumps(dict(run_id=run_id, source=windows['head_sha'],
+        macos_run_id=mac_id, macos_source=macos['head_sha'])))
 
 
 def publish():
@@ -78,7 +107,8 @@ def publish():
         '新增同步排查和受限重试。离线、文件占用、权限、磁盘与路径问题会分别说明；扫描前复核当前错误和设备连接。\n'
         '桌面小精灵新增文件邮差帧动画，保留环形进度，带待机动作和白描边。\n\n'
         'Windows x64 / Mac Apple Silicon。没有自更新能力的旧版需要先手动安装。Windows 未代码签名，Mac 为临时签名且未公证。\n\n'
-        f'原始构建：https://github.com/{REPO}/actions/runs/{build["run_id"]}\n', encoding='utf-8')
+        f'Windows 构建：https://github.com/{REPO}/actions/runs/{build["run_id"]}\n'
+        f'Mac 构建：https://github.com/{REPO}/actions/runs/{build["macos_run_id"]}\n', encoding='utf-8')
     tag = 'v'+__version__
     existing = subprocess.run(['gh','release','view',tag,'--repo',REPO,'--json','isDraft'],capture_output=True,text=True)
     if existing.returncode == 0:

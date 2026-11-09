@@ -3,8 +3,11 @@ on:
   workflow_dispatch:
     inputs:
       build_run_id:
-        description: Successful Build desktop packages run ID
+        description: Successful Windows build job run ID
         required: true
+      macos_build_run_id:
+        description: Optional Mac build run ID with identical runtime inputs
+        required: false
 permissions:
   contents: write
   actions: read
@@ -14,6 +17,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       BUILD_RUN_ID: ${{ inputs.build_run_id }}
+      MACOS_BUILD_RUN_ID: ${{ inputs.macos_build_run_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,6 +31,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           run-id: ${{ inputs.build_run_id }}
+          pattern: laoyu-sync-windows*
+          github-token: ${{ github.token }}
+          path: release-assets
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.macos_build_run_id || inputs.build_run_id }}
+          pattern: laoyu-sync-macos*
           github-token: ${{ github.token }}
           path: release-assets
       - name: Publish and read back every asset
