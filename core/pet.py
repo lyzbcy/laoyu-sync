@@ -2,7 +2,7 @@
 """同步小精灵 —— 桌面宠物，实时显示 Syncthing 同步状态与进度。
 
 左键点一下：展开/收起详情面板
-左键双击：打开 Syncthing 管理页面
+左键双击：唤起捞鱼文件夹同步主窗口
 左键拖动：移动小精灵
 右键：菜单（打开管理页面 / 启动 Syncthing / 置顶开关 / 退出）
 """
@@ -51,17 +51,38 @@ SYNCTHING_EXE_CANDIDATES = [
     os.path.expandvars(r"%APPDATA%\Syncthing\syncthing.exe"),
 ]
 
-# 捞鱼文件夹同步（套壳管理界面）网关：地址固定本机，令牌从其配置读取
-SYNCSPIRITE_CFG = config.CONFIG_PATH
+def open_desktop(route=''):
+    if platform.system() == 'Windows':
+        # The clicked pet owns foreground activation. Pass it to its parent app.
+        ctypes.windll.user32.AllowSetForegroundWindow(os.getppid())
+
+    def request_window():
+        request = urllib.request.Request(
+            _gateway() + '/api/window/show', data=json.dumps({'route': route}).encode(),
+            headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'},
+        )
+        try:
+            with api_open(request, timeout=8) as response:
+                response.read()
+        except OSError as error:
+            log('desktop window unavailable:', type(error).__name__)
+
+    threading.Thread(target=request_window, daemon=True).start()
 
 
-def open_syncsprite(route=''):
-    url = f"http://127.0.0.1:{os.environ.get('LAOYU_SYNC_PORT', config.get('port'))}/"
-    try:
-        token = json.loads(SYNCSPIRITE_CFG.read_text(encoding="utf-8")).get("token", "")
-    except Exception:
-        token = ""
-    webbrowser.open(url + ("?t=" + token if token else "") + route)
+def open_syncthing():
+    def request_engine():
+        request = urllib.request.Request(
+            _gateway() + '/api/meta', headers={'X-Token': config.get('token')},
+        )
+        try:
+            with api_open(request, timeout=3) as response:
+                url = json.load(response)['engine_url']
+            webbrowser.open(url)
+        except (OSError, KeyError, ValueError) as error:
+            log('engine settings unavailable:', type(error).__name__)
+
+    threading.Thread(target=request_engine, daemon=True).start()
 
 
 def read_gui_config():
@@ -337,12 +358,12 @@ class PetApp:
             justify=tk.LEFT, anchor="w", padx=16, pady=12, wraplength=int(300 * self.S),
         )
         self.panel_label.pack()
-        tk.Button(self.panel, text='打开助手，查看下一步 →', command=self.open_web,
+        tk.Button(self.panel, text='打开助手，查看下一步 →', command=self.open_next_step,
                   bg='#334A5A', fg='#E8F4FA', relief='flat', padx=12, pady=7).pack(fill='x')
 
         self.menu = tk.Menu(root, tearoff=0)
-        self.menu.add_command(label="打开捞鱼文件夹同步", command=open_syncsprite)
-        self.menu.add_command(label="打开 Syncthing 高级设置", command=self.open_web)
+        self.menu.add_command(label="打开捞鱼文件夹同步", command=open_desktop)
+        self.menu.add_command(label="打开 Syncthing 高级设置", command=open_syncthing)
         self.menu.add_command(label="启动 Syncthing", command=self.manual_start)
         self.menu.add_separator()
         self.menu.add_checkbutton(label="窗口置顶", variable=self.topmost,
@@ -379,6 +400,8 @@ class PetApp:
         self._place_panel()
 
     def _on_release(self, e):
+        if self._drag is None:
+            return
         dragged, self._drag = self._moved, None
         if not dragged and not self._click_job:
             self._click_job = self.root.after(260, self._toggle_panel)
@@ -387,7 +410,8 @@ class PetApp:
         if self._click_job:
             self.root.after_cancel(self._click_job)
             self._click_job = None
-        self.open_web()
+        self._drag = None
+        open_desktop()
 
     def _on_rmb(self, e):
         try:
@@ -395,8 +419,8 @@ class PetApp:
         finally:
             self.menu.grab_release()
 
-    def open_web(self):
-        open_syncsprite((self.snapshot or {}).get('setup', {}).get('route', '#/dash'))
+    def open_next_step(self):
+        open_desktop((self.snapshot or {}).get('setup', {}).get('route', '#/dash'))
 
     def manual_start(self):
         request = urllib.request.Request(_gateway() + '/api/engine/start', data=b'{}', headers={'X-Token': config.get('token'), 'Content-Type': 'application/json'}, method='POST')
@@ -460,11 +484,6 @@ class PetApp:
 
     def _draw_static(self, w, h):
         c, s = self.canvas, self.S
-        self.atlases = {
-            key: tk.PhotoImage(master=self.root, file=str(ART_DIR / 'pet' / f'{key}.png'))
-            for key in SPRITES
-        }
-        self.frame = tk.PhotoImage(master=self.root, width=FRAME_SIZE, height=FRAME_SIZE)
         cx, cy = w // 2, int(8 * s) + FRAME_SIZE // 2
         radius = FRAME_SIZE // 2 + int(6 * s)
         bounds = cx - radius, cy - radius, cx + radius, cy + radius
@@ -472,7 +491,20 @@ class PetApp:
         self.progress = c.create_arc(*bounds, start=90, extent=0, style='arc',
                                      outline='#247859', width=max(2, int(4 * s)), state='hidden')
         self.sprite_x, self.sprite_y = cx, cy - FRAME_SIZE // 2
-        self.sprite_item = c.create_image(self.sprite_x, self.sprite_y, image=self.frame, anchor='n')
+        self.mac_sprite = None
+        if platform.system() == 'Darwin':
+            from pet_macos import MacSprite
+
+            # Aqua Tk can drop PhotoImage pixels on transparent canvases.
+            self.root.update_idletasks()
+            self.mac_sprite = MacSprite(self.root.title(), ART_DIR / 'pet', SPRITES, FRAME_SIZE)
+        else:
+            self.atlases = {
+                key: tk.PhotoImage(master=self.root, file=str(ART_DIR / 'pet' / f'{key}.png'))
+                for key in SPRITES
+            }
+            self.frame = tk.PhotoImage(master=self.root, width=FRAME_SIZE, height=FRAME_SIZE)
+            self.sprite_item = c.create_image(self.sprite_x, self.sprite_y, image=self.frame, anchor='n')
         self.icon = tk.PhotoImage(master=self.root, file=str(ART_DIR / 'app.png'))
         self.root.iconphoto(True, self.icon)
         left, right, top, bottom = int(8*s), w-int(8*s), int(149*s), h-int(5*s)
@@ -515,14 +547,20 @@ class PetApp:
         else:
             index = 0
         if index != self._frame_index:
-            x, y = index % 7 * FRAME_SIZE, index // 7 * FRAME_SIZE
-            self.frame.tk.call(str(self.frame), 'copy', str(self.atlases[name]),
-                               '-from', x, y, x + FRAME_SIZE, y + FRAME_SIZE,
-                               '-to', 0, 0, '-compositingrule', 'set')
+            if self.mac_sprite is not None:
+                self.mac_sprite.set_frame(name, index)
+            else:
+                x, y = index % 7 * FRAME_SIZE, index // 7 * FRAME_SIZE
+                self.frame.tk.call(str(self.frame), 'copy', str(self.atlases[name]),
+                                   '-from', x, y, x + FRAME_SIZE, y + FRAME_SIZE,
+                                   '-to', 0, 0, '-compositingrule', 'set')
             self._frame_index = index
         breathing = mode == 'idle' or (mode == 'once' and index == FRAME_COUNT - 1)
         offset = round(math.sin(elapsed * 2.4) * 2 * self.S) if breathing else 0
-        self.canvas.coords(self.sprite_item, self.sprite_x, self.sprite_y + offset)
+        if self.mac_sprite is not None:
+            self.mac_sprite.move(self.sprite_x, self.sprite_y + offset)
+        else:
+            self.canvas.coords(self.sprite_item, self.sprite_x, self.sprite_y + offset)
         if mode != 'static':
             interval = 85 if breathing and index in (0, FRAME_COUNT - 1) else round(1000 / fps)
             self._frame_job = self.root.after(interval, self._draw_frame)

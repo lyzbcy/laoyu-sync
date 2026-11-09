@@ -21,11 +21,12 @@ description: 开发维护捞鱼文件夹同步。先读开发导航，按模块�
 
 先读 docs/roadmap.md 和模块文档。小写英文文件名；稳定产品 ID laoyu-sync，主程序 LaoyuSync.exe。小改沿用main，大改feature/<主题>；提交说明结果与验证。长操作 activity.user 事件流，开发日志轮转到用户数据目录；禁止记录令牌、密钥、文件内容。
 
-版本源 core/version.py 的 __version__/CHANGELOG，当前正式版 0.3.13；正式版本以根 version.json 与公开发布页为准，候选不等于已发行。每次交付同步代码、文档、版本并推送既定远端，不改变可见性。安装器/界面/Mac元数据同步。scripts/package.py、package_mac.py 生成真实哈希；正式 version.json 保留旧 Windows 字段并提供 platforms 的分平台资产，包公开并校验后才更新。同版本公开包不可覆盖。
+版本源 core/version.py 的 __version__/CHANGELOG，当前正式版 0.3.17；正式版本以根 version.json 与公开发布页为准，候选不等于已发行。每次交付同步代码、文档、版本并推送既定远端，不改变可见性。安装器/界面/Mac元数据同步。scripts/package.py、package_mac.py 生成真实哈希；正式 version.json 保留旧 Windows 字段并提供 platforms 的分平台资产，包公开并校验后才更新。同版本公开包不可覆盖。
 
 ## 能力与验收入口
 
 - 同步排查、受限文件重试与命令行入口见 [docs/sync-repair.md](docs/sync-repair.md)。
+- Agent 本机接入入口在「设置与关于」，提示词和 [接口说明](ui/agent/SKILL.md) 随包交付，调用与应用界面相同的鉴权 API。
 
 - 日志已实现轮转、事件流、脱敏复制；更新已实现每日UTC+8尝试/成功、手动重试、正式版本比较、可信地址与哈希、进度、重启与恢复，真实验收见 roadmap/updater。
 - Windows 完整引擎/小鱼；python -m unittest discover -s tests -v。包运行、更新、安装分别留证，不能只看构建成功。

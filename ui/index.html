@@ -210,6 +210,13 @@ window.addEventListener("error", function (e) {
             </div>
             <div id="syncRepairReport" class="repair-report hidden" aria-live="polite"></div>
           </section>
+          <section class="card">
+            <div class="settings-card-head"><h2>AI 助手接入</h2><p>让同一台电脑上的 Agent 查看同步状态、排查异常，按你的指示执行修复。</p></div>
+            <div class="settings-actions">
+              <button id="btnCopyAgentPrompt" class="btn small" type="button">复制接入提示词</button>
+              <button id="btnAgentGuide" class="btn small" type="button">查看接口说明</button>
+            </div>
+          </section>
         <div class="card sync-network-card">
           <div class="settings-card-head"><h2>同步网络</h2><p>选择文件同步使用的连接方式。</p></div>
           <label for="syncNetworkMode">文件同步连接方式</label>
@@ -259,7 +266,7 @@ window.addEventListener("error", function (e) {
           </section>
           <section class="card settings-author">
             <div class="settings-card-head"><h2>联系与支持</h2><p>遇到问题可以直接留言给作者。</p></div>
-            <div class="settings-actions"><a class="btn small" href="#/feedback">问题反馈</a><a class="link" href="#" data-external="https://github.com/lyzbcy/laoyu-sync">项目源码</a></div>
+            <div class="settings-actions"><a class="btn small" href="#/feedback">问题反馈</a><a class="link" href="#" data-external="https://github.com/lyzbcy/laoyu-sync">去 GitHub 点 Star</a></div>
             <details class="settings-fold">
               <summary>关于作者与原创表情</summary>
               <p class="mut small">由捞鱼工作室制作，文件同步由 <a href="#" data-external="https://syncthing.net">Syncthing</a> 提供。</p>

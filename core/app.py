@@ -124,6 +124,16 @@ def configure_native_session():
     })
 
 
+def show_desktop_window(window, route):
+    system = platform.system()
+    if system == 'Darwin' or (system == 'Windows'
+                              and window.native.WindowState.ToString() == 'Minimized'):
+        window.restore()
+    window.show()
+    if route:
+        window.run_js('location.hash = ' + json.dumps(route))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--console", action="store_true", help="日志同时输出到控制台")
@@ -191,6 +201,7 @@ def main():
         with cleanup_lock:
             if cleaned_up:
                 return
+            gateway.WINDOW_CALLBACK = None
             pet_controller.close()
             server.shutdown()
             stop_owned()
@@ -238,6 +249,10 @@ def main():
         window.events.before_show += style_native_titlebar
     activity.user(config.PRODUCT_NAME + "已启动")
     def loaded():
+        with cleanup_lock:
+            if cleaned_up:
+                return
+            gateway.WINDOW_CALLBACK = lambda route: show_desktop_window(window, route)
         def start_pet():
             try:
                 gateway.start_pet_from_settings()

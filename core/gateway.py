@@ -30,12 +30,15 @@ MIME = {
     ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
     ".css": "text/css; charset=utf-8", ".png": "image/png",
     ".svg": "image/svg+xml", ".ico": "image/x-icon", ".json": "application/json",
+    ".md": "text/plain; charset=utf-8",
 }
 
 # pywebview 窗口就绪后由 app.py 置 True，前端据此显示“浏览…”按钮
 PICKER_AVAILABLE = False
 PET_CALLBACK = None
 PET_SUPPORTED = False
+WINDOW_CALLBACK = None
+WINDOW_ROUTES = ('', '#/dash', '#/folders', '#/devices')
 
 
 _pet_settings_lock = threading.RLock()
@@ -135,7 +138,7 @@ def make_handler(mgr):
                 self._err(f"服务内部错误：{exc}", 500)
 
         def do_POST(self):
-            if urllib.parse.urlparse(self.path).path in ('/api/feedback', '/api/sync-repair'):
+            if urllib.parse.urlparse(self.path).path in ('/api/feedback', '/api/sync-repair', '/api/window/show'):
                 return self._post()
             # Serialize configuration mutations; Syncthing remains the source of truth.
             with wizard.MUTATION_LOCK:
@@ -147,6 +150,15 @@ def make_handler(mgr):
                 if not self._authorized():
                     return self._err("本机令牌校验失败，请从启动器进入管理界面", 401)
                 body = self._body()
+                if path == '/api/window/show':
+                    route = body.get('route', '')
+                    if route not in WINDOW_ROUTES:
+                        return self._err('未知的应用页面')
+                    callback = WINDOW_CALLBACK
+                    if callback is None:
+                        return self._err('桌面窗口尚未就绪', 409)
+                    callback(route)
+                    return self._json({'ok': True})
                 if path == '/api/folder/update':
                     return self._json(wizard.update_folder_flow(mgr, body.get('folder_id'), body.get('devices'), body.get('paused')))
                 if path == '/api/sync-repair':

@@ -1,8 +1,8 @@
 # 开发导航
 
-现状：0.3.14 已正式发布；正式发行以 version.json/roadmap 为准。
+现状：0.3.17 已正式发布；0.3.18 为开发候选。
 负责人：捞鱼工作室。
-最后更新时间：2026-10-19。
+最后更新时间：2026-11-09。
 
 先读 roadmap.md，开发前查对应模块。
 
@@ -12,6 +12,7 @@
 - requirements-audit.md：软件开发规范逐项审计，完成证据与缺口。
 - requirements-audit-20261019.md：0.3.12 候选与 0.3.11 正式 CI 的最新规范核查；反馈、更新、启动器及文档缺口。
 - sync-repair.md：同步排查、受限修复、命令行入口。
+- [AI 助手本机接口](../ui/agent/SKILL.md)：安装版从「设置与关于 → AI 助手接入」复制提示词和接口说明，复用同一套回环鉴权 API。
 - sync-network.md：同步优先直连、代理分流规则、系统 VPN 边界与隔离验收。
 - network.md：Tailscale只读识别、既有Syncthing配置接入与状态边界。
 - tech.md：资源/用户数据/引擎分离与鉴权。
@@ -29,3 +30,5 @@
 启动器入口 E:/共享/tools/软件开发/启动器适配/laoyu-launcher-adapter/SKILL.md；launcher-adapter.json。版本core/version.py；最终包生成dist/version.json，确认公开下载后才替换根version.json，源码提交不提前指向不存在的包。
 
 Mac 小精灵：core/pet_control.py 负责就绪握手/并发/关闭态；pet.py 按平台透明与定位，右键关闭经 gateway 持久化。设置锁将启动读取与用户开关串行；退出绑定 closing 和 finally，兼容 Cmd-Q。构建要求 Tcl/Tk 8.6，见 packaging.md。
+
+桌面唤起：小精灵双击通过 `POST /api/window/show` 唤起既有窗口并保留当前页，详情按钮可跳到下一步。网关核验本机令牌和站内页面白名单，窗口在 renderer 就绪后注册、退出时注销。

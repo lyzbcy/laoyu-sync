@@ -1034,6 +1034,27 @@ $("btnSyncRules").onclick = async () => {
   } catch (err) { toast(friendly(err)); }
 };
 window.addEventListener('focus', loadMeta);
+$("btnCopyAgentPrompt").onclick = async () => {
+  const prompt = `请接入这台电脑上运行的「捞鱼文件夹同步」。
+先在本机读取 ${location.origin}/agent/SKILL.md，按说明访问同一地址的本机 API。
+先只读检查同步状态和异常，用中文告诉我哪些项目还没同步及原因。需要修复或修改项目、设备设置时，先说明动作并等我同意。
+令牌只用于发往本机的 X-Token 请求头。回复里请隐藏令牌、设备 ID、网络地址和完整文件路径。`;
+  if (await copyText(prompt)) toast("提示词已复制，可发给本机 Agent");
+  else infoModal("复制接入提示词", `<textarea readonly rows="8" style="width:100%">${esc(prompt)}</textarea>`);
+};
+$("btnAgentGuide").onclick = async () => {
+  try {
+    const response = await fetch('/agent/SKILL.md');
+    if (!response.ok) throw new Error('接口说明暂时打不开');
+    const guide = await response.text();
+    infoModal("AI 助手接口说明",
+      `<textarea id="agentGuideText" readonly rows="13" style="width:100%">${esc(guide)}</textarea><button id="btnCopyAgentGuide" class="btn small" type="button">复制说明</button>`);
+    $("btnCopyAgentGuide").onclick = async () => {
+      if (await copyText(guide)) toast("接口说明已复制");
+      else { $("agentGuideText").focus(); $("agentGuideText").select(); }
+    };
+  } catch (error) { toast(friendly(error)); }
+};
 $("btnLogs").onclick = async () => { try { const d = await api("GET", "/api/diagnostics"); if (await copyText(d.text)) toast("诊断日志已复制；可能包含路径和设备名称，请检查后再分享"); else infoModal("请手动复制诊断日志", `<p>自动复制失败，请选中下面内容复制；分享前检查路径和设备名称。</p><textarea rows="12" style="width:100%">${esc(d.text)}</textarea>`); } catch(e) { toast(friendly(e)); } };
 $("btnEngineStart").onclick = async () => { try { await api("POST", "/api/engine/start"); toast("正在尝试启动引擎，请查看动态"); } catch(e) { toast(friendly(e)); } };
 let REVIEW_OPEN = false;
