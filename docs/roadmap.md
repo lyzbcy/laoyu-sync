@@ -1,3 +1,9 @@
+## 2026-11-09 0.3.19 正式发布
+
+更新清单的原请求遇到网络错误时，应用沿用现有代理，通过 GitHub Contents API 读取同一份清单。模拟 Windows 连接重置后，官方备用接口返回的版本与 SHA-256 已和正式清单核对一致。221 项测试通过。
+
+Windows x64 安装器、便携包和 Mac Apple Silicon ZIP 来自同一提交的构建。Windows 通过原生窗口和小精灵验收，Mac 通过归档、签名、更新及回退验收。发布任务逐字节回读并核对五个公开资产的 SHA-256 后，同步正式更新清单和软件中心的产品侧描述。[0.3.19 发布页](https://github.com/lyzbcy/laoyu-sync/releases/tag/v0.3.19) · [构建](https://github.com/lyzbcy/laoyu-sync/actions/runs/42615080460) · [发布任务](https://github.com/lyzbcy/laoyu-sync/actions/runs/42615911471) · [回读记录](reference/release-0.3.19.json)
+
 ## 2026-11-09 0.3.18 正式发布
 
 双击悬浮小精灵恢复既有应用窗口并保留当前页，详情按钮可直接跳到项目或设备页。Mac 人物帧改用系统原生图层，保留进度环和透明背景。设置新增 AI 助手本机接入，提供可复制提示词和鉴权接口说明。联系与支持保留手动 Star 入口，原使用门槛和 15 天静默策略继续生效。
