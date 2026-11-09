@@ -15,7 +15,7 @@ import sys
 import time
 import urllib.request
 
-from assemble_release import assemble, __version__
+from assemble_release import assemble, release_changes, __version__
 
 REPO = 'lyzbcy/laoyu-sync'
 ROOT = Path('release-assets')
@@ -103,9 +103,7 @@ def publish():
             raise ValueError('Mac native gate not satisfied: '+name)
     assemble(final)
     notes = Path('release-notes.md')
-    notes.write_text('捞鱼同步小助手更名为「捞鱼文件夹同步」。同步概览、设置与关于、Windows 安装向导换新版。\n'
-        '新增同步排查和受限重试。离线、文件占用、权限、磁盘与路径问题会分别说明；扫描前复核当前错误和设备连接。\n'
-        '桌面小精灵新增文件邮差帧动画，保留环形进度，带待机动作和白描边。\n\n'
+    notes.write_text('\n'.join('- ' + item for item in release_changes()) + '\n\n'
         'Windows x64 / Mac Apple Silicon。没有自更新能力的旧版需要先手动安装。Windows 未代码签名，Mac 为临时签名且未公证。\n\n'
         f'Windows 构建：https://github.com/{REPO}/actions/runs/{build["run_id"]}\n'
         f'Mac 构建：https://github.com/{REPO}/actions/runs/{build["macos_run_id"]}\n', encoding='utf-8')

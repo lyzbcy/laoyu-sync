@@ -13,7 +13,11 @@ from prepare_feedback import valid_webhook
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'core'))
-from version import __version__
+from version import CHANGELOG, __version__
+
+
+def release_changes():
+    return next(entry['items'] for entry in CHANGELOG if entry['ver'] == __version__)
 
 
 def assemble(directory):
@@ -32,7 +36,7 @@ def assemble(directory):
     installer = directory / f'laoyu-sync-{__version__}-win-x64-setup.exe'
     if installer.read_bytes()[:2] != b'MZ':
         raise ValueError('Missing Windows installer')
-    manifest = dict(version=__version__, notes='同步排查和安全重试、新版设置与安装向导、带进度环和待机动画的桌面精灵。',
+    manifest = dict(version=__version__, notes='；'.join(release_changes()) + '。',
         **assets['win-x64'], platforms=assets)
     (directory / 'version.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding='utf-8')
     adapter = json.loads((ROOT / 'launcher-adapter.json').read_text(encoding='utf-8'))
