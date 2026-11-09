@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "laoyu-sync",
   "name": "捞鱼文件夹同步",
-  "version": "0.3.17",
+  "version": "0.3.18",
   "platform": "win32",
   "architecture": "x64",
   "executable": "LaoyuSync.exe",
@@ -13,8 +13,8 @@
   "videoIds": [],
   "package": {
     "type": "portable-zip",
-    "path": "dist/laoyu-sync-0.3.17-win-x64.zip",
-    "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-win-x64.zip",
-    "sha256": "057a95a15dd5520e2d80087ed259974b4e9290ea0c4b47c4b99b7698b6da0a41"
+    "path": "dist/laoyu-sync-0.3.18-win-x64.zip",
+    "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-win-x64.zip",
+    "sha256": "93151d88a830146439cf5b573ab6b14363ccb323a41637a21bcfa772fb47881e"
   }
 }

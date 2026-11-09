@@ -1,19 +1,19 @@
 {
-  "version": "0.3.17",
-  "notes": "同步排查和安全重试、新版设置与安装向导、带进度环和待机动画的桌面精灵。",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-win-x64.zip",
-  "sha256": "057a95a15dd5520e2d80087ed259974b4e9290ea0c4b47c4b99b7698b6da0a41",
-  "sizeBytes": 45205297,
+  "version": "0.3.18",
+  "notes": "双击桌面小精灵唤起应用窗口；小精灵状态缩为人物内的两行标签；设置新增 AI 助手接入提示词和本机接口说明；修复 Mac 小精灵人物透明。",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-win-x64.zip",
+  "sha256": "93151d88a830146439cf5b573ab6b14363ccb323a41637a21bcfa772fb47881e",
+  "sizeBytes": 45221197,
   "platforms": {
     "win-x64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-win-x64.zip",
-      "sha256": "057a95a15dd5520e2d80087ed259974b4e9290ea0c4b47c4b99b7698b6da0a41",
-      "sizeBytes": 45205297
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-win-x64.zip",
+      "sha256": "93151d88a830146439cf5b573ab6b14363ccb323a41637a21bcfa772fb47881e",
+      "sizeBytes": 45221197
     },
     "macos-arm64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-macos-arm64.zip",
-      "sha256": "a0e9a925ff15c55491c32c7d83b0eaf9e67a78c3212c89ba6165375daf6adf01",
-      "sizeBytes": 41692459
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-macos-arm64.zip",
+      "sha256": "81976f063b100417e45f5d4cf0ec6e4879d0ebcb81cc2229a441c16772c72d7a",
+      "sizeBytes": 41898823
     }
   }
 }

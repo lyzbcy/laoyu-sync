@@ -1,0 +1,43 @@
+{
+  "build": {
+    "run_id": "42590895736",
+    "source": "3fa0885f09b9272c7d57be676418c422cc58cbae",
+    "macos_run_id": "42590895736",
+    "macos_source": "3fa0885f09b9272c7d57be676418c422cc58cbae"
+  },
+  "version": "0.3.18",
+  "assets": [
+    {
+      "name": "laoyu-sync-0.3.18-win-x64.zip",
+      "sha256": "93151d88a830146439cf5b573ab6b14363ccb323a41637a21bcfa772fb47881e",
+      "size": 45221197,
+      "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-win-x64.zip"
+    },
+    {
+      "name": "laoyu-sync-0.3.18-win-x64-setup.exe",
+      "sha256": "3a51947eab8c4b8ddc960e19d3770bbae14b463c519207a415074b48ef95100a",
+      "size": 37629752,
+      "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-win-x64-setup.exe"
+    },
+    {
+      "name": "laoyu-sync-0.3.18-macos-arm64.zip",
+      "sha256": "81976f063b100417e45f5d4cf0ec6e4879d0ebcb81cc2229a441c16772c72d7a",
+      "size": 41898823,
+      "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/laoyu-sync-0.3.18-macos-arm64.zip"
+    },
+    {
+      "name": "SHA256SUMS-0.3.18.txt",
+      "sha256": "e5da403e90a5b81b1c4ac75c73a47f6bc80bdb0cb622256766a65ba833c7ac63",
+      "size": 298,
+      "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/SHA256SUMS-0.3.18.txt"
+    },
+    {
+      "name": "version.json",
+      "sha256": "8f0629329c8b01bfc3a806712c1cf481fe657a376622283b28c572c711c93246",
+      "size": 982,
+      "url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.18/version.json"
+    }
+  ],
+  "ok": true,
+  "publish_run": "42591703784"
+}
