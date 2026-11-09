@@ -1,19 +1,19 @@
 {
-  "version": "0.3.14",
-  "notes": "同步直连一键自检与外部引擎一键接管，直连应用状态一眼可见。",
-  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-win-x64.zip",
-  "sha256": "38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa",
-  "sizeBytes": 41964002,
+  "version": "0.3.17",
+  "notes": "同步排查和安全重试、新版设置与安装向导、带进度环和待机动画的桌面精灵。",
+  "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-win-x64.zip",
+  "sha256": "057a95a15dd5520e2d80087ed259974b4e9290ea0c4b47c4b99b7698b6da0a41",
+  "sizeBytes": 45205297,
   "platforms": {
     "win-x64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-win-x64.zip",
-      "sha256": "38822c7828818f1a657dc89e54b3d35805bfeb88c12eee1d05a233ee7ea3b7aa",
-      "sizeBytes": 41964002
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-win-x64.zip",
+      "sha256": "057a95a15dd5520e2d80087ed259974b4e9290ea0c4b47c4b99b7698b6da0a41",
+      "sizeBytes": 45205297
     },
     "macos-arm64": {
-      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.14/laoyu-sync-0.3.14-macos-arm64.zip",
-      "sha256": "25f93375d7c1745fb0b75d5df363ca06f8eb0e71cf47906e58f76480142f7c84",
-      "sizeBytes": 36531831
+      "download_url": "https://github.com/lyzbcy/laoyu-sync/releases/download/v0.3.17/laoyu-sync-0.3.17-macos-arm64.zip",
+      "sha256": "a0e9a925ff15c55491c32c7d83b0eaf9e67a78c3212c89ba6165375daf6adf01",
+      "sizeBytes": 41692459
     }
   }
 }
