@@ -126,7 +126,7 @@ def main():
             subprocess.run(['taskkill','/PID',str(child.pid),'/T','/F'], capture_output=True)
             result['clean_exit'] = False
         (profile / 'result.json').write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding='utf-8')
-    print(json.dumps(result, ensure_ascii=False))
+    print(json.dumps(result))
 
 if __name__ == '__main__':
     main()

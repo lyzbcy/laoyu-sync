@@ -3,6 +3,8 @@ import argparse
 import hashlib
 from pathlib import Path
 import tarfile
+import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -11,8 +13,17 @@ BASE = f'https://github.com/syncthing/syncthing/releases/download/v{VERSION}/'
 
 def fetch(url):
     req = urllib.request.Request(url, headers={'User-Agent': 'LaoyuSync-Build'})
-    with urllib.request.urlopen(req, timeout=120) as response:
-        return response.read()
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if attempt == 2 or error.code not in (429, 500, 502, 503, 504):
+                raise
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt == 2:
+                raise
+        time.sleep(2 ** (attempt + 1))
 
 def main():
     parser = argparse.ArgumentParser()
